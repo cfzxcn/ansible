@@ -1,0 +1,5 @@
+softName: zabbix
+packName: zabbix_agent-6.0.22-linux-3.0-amd64-static
+tarType: tar.gz
+baseDir: /usr/local
+zabbixServer: 192.168.1.204

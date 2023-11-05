@@ -1,0 +1,26 @@
+#- include_tasks: install_nginx.yml
+#- import_tasks: install_php.yml
+#- import_tasks: install_mariadb.yml
+- name: install httpd
+  yum: name=httpd state=installed
+
+#- name: Generate vhost.conf.j2 to client
+#  template:
+#    src: vhost.conf.j2
+#    dest: /etc/httpd/conf.d/vhost.conf
+
+- name: copy httpd.conf
+  copy: src=httpd.conf dest=/etc/httpd/conf/ backup=yes
+  notify: restart httpd
+#
+#- name: copy mime.types
+#  copy: src=mime.types dest=/etc/httpd/conf/ backup=yes
+
+- name: Generate index.html to client
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+    backup: yes
+
+- name: start and enabled httpd
+  service: name=httpd state=started enabled=yes

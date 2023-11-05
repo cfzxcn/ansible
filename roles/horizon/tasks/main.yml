@@ -1,0 +1,25 @@
+- name: yum Install openstack-dashboard
+  yum: name="openstack-dashboard"
+
+- name: copy /etc/openstack-dashboard/local_settings.j2 to client
+  copy: src=local_settings.j2 dest=/etc/openstack-dashboard/local_settings backup=yes
+
+- name: Insert 'WSGIApplicationGroup %{GLOBAL}' to /etc/httpd/conf.d/openstack-dashboard.conf
+  lineinfile: path=/etc/httpd/conf.d/openstack-dashboard.conf insertafter="WSGISocketPrefix run/wsgi(.*)" line='WSGIApplicationGroup %{GLOBAL}' backup=true
+  ignore_errors: true
+
+- name: chown -R apache:apache /usr/share/openstack-dashboard
+  file:
+    path: /usr/share/openstack-dashboard
+    state: directory
+    recurse: yes
+    owner: apache
+    group: apache
+  ignore_errors: true
+
+- name: ln -s /etc/openstack-dashboard /usr/share/openstack-dashboard/openstack_dashboard/conf
+  file: src=/etc/openstack-dashboard dest=/usr/share/openstack-dashboard/openstack_dashboard/conf state=link
+
+- name: systemctl restart httpd.service
+  service: name="httpd.service" state=restarted
+  ignore_errors: true

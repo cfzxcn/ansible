@@ -1,0 +1,20 @@
+- name: yum install pcs pacemaker fence-agents-all
+  yum: name="pcs,pacemaker,fence-agents-all"
+
+- name: Change user hacluster's passwd
+  user: name=hacluster password={{ 'cf' | password_hash('sha512') }} update_password=always
+
+- name: systemctl enable --now pcsd
+  service: name=pcsd state=started enabled=yes
+
+- name:
+  block:
+    - name: pcs cluster auth -u hacluster -p cf controller pxc2 pxc3
+      shell: "pcs cluster auth -u hacluster -p cf controller pxc2 pxc3"
+    
+    - name: pcs cluster setup --force --start --name pcs_cluster controller pxc2 pxc3
+      shell: "pcs cluster setup --force --start --name pcs_cluster controller pxc2 pxc3"
+    
+    - name: pcs cluster enable --all
+      shell: "pcs cluster enable --all"
+  when: role == 'mysql2'

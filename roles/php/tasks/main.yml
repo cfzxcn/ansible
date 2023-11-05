@@ -1,0 +1,89 @@
+#---
+#- hosts: sql
+#  tasks:
+- name: 添加EPEL仓库
+  copy: src=epel.repo dest=/etc/yum.repos.d/epel.repo
+  args: 
+    creates: /etc/yum.repo.d/epel.repo
+
+- name: Install remi repo
+  shell: rpm -ivh https://mirrors.tuna.tsinghua.edu.cn/remi/enterprise/remi-release-{{ ansible_distribution_major_version }}.rpm
+  args:
+    creates: /etc/yum.repos.d/remi.repo
+
+- name: enable remi-php74 repo
+#  yum: enablerepo="base,extras,updates,epel,remi-php74,remi-safe"
+  shell: yum-config-manager --enable remi-php74
+#- name: 安装常用软件包及依赖
+#  yum:
+#    name:
+#      - vim
+#      - yum-utils
+#      - lrzsz
+#      - net-tools
+#      - wget
+#      - curl
+#      - bash-completion
+#      - rsync
+#      - gcc
+#      - gcc-c++
+#      - unzip
+#      - git
+#      - autoconf
+#      - cmake
+#      - openssl
+#      - openssl-devel
+#      - pcre 
+#      - pcre-devel 
+#      - zlib
+#      - zlib-devel
+#      - gd-devel
+#      - libxml2-devel
+#      - bzip2-devel
+#      - gnutls-devel
+#      - ncurses-devel 
+#      - bison
+#      - bison-devel
+#      - openldap  
+#      - openldap-devel
+#      - libcurl-devel 
+#      - libevent 
+#      - libevent-devel 
+#      - expat-devel
+#      - numactl
+#    state: latest
+
+- name: Install php
+  yum: name=php,php-mysqlnd,php-cli,php-fpm,php-zip,php-devel,php-gd,php-pecl-apcu,php-mcrypt,php-mbstring,php-curl,php-xml,php-pear,php-bcmath,php-json,php-redis,php-phpiredis,php-common,php-pdo,php-ldap,php-soap,php-opcache,php-embedded,php-pecl-ssh2,php-pecl-imagick,php-pecl-igbinary,php-pecl-memcached,php-pecl-imagick-devel,php-pecl-igbinary-devel,php-pecl-xhprof
+# 注意：rhel8安装php-mysqlnd，rhel7安装php-mysql
+# php-pecl-mysql和php-pecl-mysql-xdevapi找不到匹配的包，所以去掉了
+- name: add "{{ phpUser }}" user
+  user: "name={{ phpUser }} shell=/sbin/nologin system=yes"
+
+- name: start php-fpm service
+  service:
+    name: php-fpm
+    state: started
+    enabled: yes
+#  ignore_errors: true
+
+- name: start nginx service
+  shell: systemctl start nginx
+  args: 
+    creates: /var/run/nginx.pid
+# 这里加了个条件判断，当/var/run/nginx.pid存在时，就不启动nginx,好像args:creates 只能和shell模块搭配使用
+
+- name: Generate  /etc/php.ini and /etc/php-fpm.d/www.conf  to client
+  template:
+#    src: "{{ item.srcfile}}"
+#    dest: "{{ item.cfdest }}"
+    src: www7433.conf.j2
+    dest: /etc/php-fpm.d/www.conf
+    backup: yes
+#    force: yes
+#  tags: name=cpphpconf
+  notify: restart php-fpm
+#  loop:
+#    - { srcfile: 'php7433.ini.j2', cfdest: '/etc/php.ini' }
+#    - { srcfile: 'www7433.conf.j2', cfdest: '/etc/php-fpm.d/www.conf' }
+

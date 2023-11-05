@@ -1,0 +1,15 @@
+<VirtualHost *:80>
+    ServerAdimin localhost
+    DirectoryIndex index.html
+    ServerName "{{ ansible_fqdn }}"
+    DocumentRoot "/data/web"
+    ErrorLog "/var/log/httpd/{{ ansible_fqdn }}.err_log"
+    CustomLog  /var/log/httpd/{{ ansible_fqdn }}.access_log  common
+  <Directory "/data/web">
+#    Options -Indexes +FollowSymlinks
+#    AllowOverride All
+    Options Indexes FollowSymlinks
+    AllowOverride None
+    Require all granted
+  </Directory>
+</VirtualHost>

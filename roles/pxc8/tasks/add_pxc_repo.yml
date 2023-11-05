@@ -1,0 +1,112 @@
+#- name: Add pxc8 repo
+#  yum_repository:
+#    name: pxc8
+#    description: pxc8 repo
+#    baseurl: https://mirrors.tuna.tsinghua.edu.cn/percona/release/$releasever/RPMS/$basearch
+#    gpgcheck: no
+#    enabled: 1
+##    gpgkey: https://nginx.org/keys/nginx_signing.key
+#  tags:
+#    - addpxc8repo
+- name: yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+  yum: name=https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+
+- name: Replace percona-prel-release.repo
+  replace:
+    path: /etc/yum.repos.d/percona-prel-release.repo
+    regexp: 'http://repo.percona.com/prel/yum/release/\$releasever/RPMS/noarch'
+    replace: 'https://mirrors.tuna.tsinghua.edu.cn/percona/release/$releasever/RPMS/$basearch'
+
+- name: percona-release setup pxc-80 && percona-release enable tools release
+  shell: "percona-release setup pxc-80 && percona-release enable tools release"
+
+- name: Replace percona-pxc-80-release.repo
+  replace:
+    path: /etc/yum.repos.d/percona-pxc-80-release.repo
+    regexp: 'http://repo.percona.com/pxc-80/yum/release/\$releasever/RPMS/x86_64'
+    replace: 'https://mirrors.tuna.tsinghua.edu.cn/percona/pxc-80/yum/release/$releasever/RPMS/$basearch'
+
+- name: yum install percona-xtradb-cluster
+  yum: name=percona-xtradb-cluster state=present
+
+#- name: change user group for certs
+#  file:
+#    path: /etc/mysql/certs/
+#    owner: mysql
+#    group: mysql
+#    mode: 0755
+#
+#- name: copy certs
+#  copy:
+#    src: "{{ item.src }}"
+#    dest: "{{ item.dest }}"
+#    owner: mysql
+#    group: mysql
+#    mode: 0600
+#  loop:
+#    - { src: 'ca.pem', dest: '/etc/mysql/certs/ca.pem' }
+#    - { src: 'server-cert.pem', dest: '/etc/mysql/certs/server-cert.pem' }
+#    - { src: 'server-key.pem', dest: '/etc/mysql/certs/server-key.pem' }
+
+- name: push my.cnf.j2
+  template:
+    src: my.cnf.j2
+    dest: /etc/my.cnf
+
+- name: mysql_bootstrap
+  block:
+    - name: First mysql node start
+      service: name=mysql.service state=started
+
+    - name: grant_authorization on mysql@bootstrap
+      shell: echo `grep "temporary password" /var/log/mysqld.log | awk '{print $NF}'`
+      register: mysql_root_password_temp
+    
+    - name: set new password for mysql root user
+      shell: mysql -NBe "alter user root@'localhost' identified by '{{ dbRootPasswd }}';" --connect-expired-password -uroot -p'{{ mysql_root_password_temp.stdout }}'
+    
+    - name: create database {{ dbName }}
+      shell: mysql -uroot -p'{{ dbRootPasswd }}' -e "create database {{ dbName }} DEFAULT CHARSET utf8 COLLATE utf8_general_ci;"
+
+    - name: service mysql stop
+      service: name=mysql.service state=stopped
+
+    - name: mysql@bootstrap.service
+      service: name=mysql@bootstrap.service state=started
+#    - name: mysql@bootstrap.service
+#      shell: systemctl start mysql@bootstrap.service
+#      ignore_errors: True
+#      register: mysql_bootstrap_out
+#
+#    - name: show mysql_bootstrap_out
+#      debug: var=mysql_bootstrap_out verbosity=0
+  when: role=='bootstrap'
+
+- name: start the second mysql.service
+  service:
+    name: mysql
+    state: started
+  when: role=='mysql2'
+
+- name: Pause for 3 seconds to start the third mysql node
+  pause: seconds=3
+
+- name: start the third mysql.service
+  service:
+    name: mysql
+    state: started
+  when: role=='mysql3'
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+   

@@ -1,0 +1,14 @@
+[Unit]
+Description=The st's Nginx-{{ ngVer }}
+After=syslog.target network.target
+
+[Service]
+Type=forking
+ExecStart={{ ngInstallDir }}/sbin/nginx -c {{ ngInstallDir }}/conf/nginx.conf
+ExecReload={{ ngInstallDir }}/sbin/nginx -s reload
+ExecStop={{ ngInstallDir }}/sbin/nginx -s quit
+Restart=always
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

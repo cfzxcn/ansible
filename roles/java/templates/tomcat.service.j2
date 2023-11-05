@@ -1,0 +1,18 @@
+[Unit]
+Description=Apache Tomcat/{{ tomVer }}
+After=network.target
+
+[Service]
+#Type=oneshot
+Type=forking
+Environment='JAVA_HOME={{ tomInstallDir }}/java'
+
+ExecStart={{ tomInstallDir }}/tomcat/bin/startup.sh
+ExecStop={{ tomInstallDir }}/tomcat/bin/shutdown.sh
+#ExecReload=/bin/kill -s HUP $MAINPID
+ExecReload={{ tomInstallDir }}/tomcat/bin/catalina.sh restart
+
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target
+

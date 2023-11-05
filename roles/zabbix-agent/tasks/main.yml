@@ -1,0 +1,39 @@
+- name: create {{ softName }} group
+  group: name={{ softName }} system=yes
+- name: create {{ softName }} user
+  user: name={{ softName }} group={{ softName }} shell=/sbin/nologin system=yes create_home=no
+
+- name: unarchive "{{ packName }}.{{ tarType }}" to remote host 
+  unarchive: src="{{ packName }}.{{ tarType }}" dest="{{ baseDir }}" owner=root group=root
+
+- name: Append 'Server={{ zabbixServer }}' to {{ baseDir }}/conf/zabbix_agentd.conf
+  lineinfile:
+    path: "{{ baseDir }}/conf/zabbix_agentd.conf"
+    insertafter: '# Server='
+    line: "Server={{ zabbixServer }}"
+    backup: true
+  notify: restart {{ softName }}-agentd.service
+
+- name: Comment out 'ServerActive=127.0.0.1'
+  replace:
+    path: "{{ baseDir }}/conf/zabbix_agentd.conf"
+    regexp: "^ServerActive"
+    replace: "#ServerActive"
+
+- name: Comment out 'Server=127.0.0.1'
+  replace:
+    path: "{{ baseDir }}/conf/zabbix_agentd.conf"
+    regexp: "^Server=127.0.0.1"
+    replace: "#Server=127.0.0.1"
+
+- name: Generate /usr/lib/systemd/system/zabbix-agentd.service 
+  template: src=zabbix-agentd.service.j2 dest=/usr/lib/systemd/system/zabbix-agentd.service
+  notify: restart {{ softName }}-agentd.service
+
+- name: Start {{ softName }}-agentd.service and daemon-reload
+  ansible.builtin.systemd:
+    state: started
+    enabled: true
+    daemon_reload: true
+    name: "{{ softName }}-agentd.service"
+

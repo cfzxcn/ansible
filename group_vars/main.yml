@@ -1,0 +1,90 @@
+# roles/cominit/vars/main.yml
+#computeIp: 192.168.1.34
+#computeHostname: "c1.st.cn"
+
+# common begging
+systemdDir: /usr/lib/systemd/system
+ensX: ens34
+#ensXip: 60.0.0.61
+localIp: 60.0.0.61
+cfVip: 192.168.1.100
+vipdbPort: 3888
+dbPort: 3306
+dbRootPasswd: my@sql
+dbSpasswd: cf
+
+# common end
+
+
+redisClusterDir: /etc/redis-cluster
+
+###  pxc begging
+pxcClusterName: cfpxccluster
+wsrep_sst_auth_user: sstuser
+wsrep_sst_auth_password: cf
+
+dbName: wordpress
+app_user: cf
+app_password: cf
+internal_net: '192.168.1.%'
+###  pxc end
+
+cephDir: /root/ceph-cluster
+
+# mysql glibc
+packName: mysql-8.0.21-linux-glibc2.12-x86_64
+#packName: mysql-5.7.31-linux-glibc2.12-x86_64
+tarType: tar.xz
+#TARTYPE: tar.gz
+BASEDIR: /usr/local/mysql
+DATADIR: /data/mysql_data
+
+# mysqlbundle
+#packName: mysql-8.0.21-linux-glibc2.12-x86_64
+#packName: mysql-5.7.43-1.el7.x86_64.rpm-bundle
+bundleName: mysql-8.0.34-1.el7.x86_64.rpm-bundle
+#tarType: tar
+#tarType: tar.xz
+
+# mysqlyum
+
+# compute
+servicePasswd: cf
+cinderConfPath: /etc/cinder/cinder.conf
+cinderName: cinder
+cinderPort: 8776
+# roles/comneutron/vars/main.yml
+neutronName: neutron
+neutronPort: 9696
+
+novaConfPath: /etc/nova/nova.conf
+novaName: nova
+novaPort: 8774
+
+placementName: placement
+placementPort: 8778
+
+
+# nginx
+ngVer: 1.24.0
+ngInstallDir: /data/nginx
+ngPort: 7188
+ngServerName: localhost
+ngUser: nginx
+
+phpPort: 35638
+php5640Port: 5640
+phpUser: php
+phpInstallDir: /usr/local
+
+# contrller chronyd allow ...
+clientIpRange192: 192.168.1.0/16
+clientIpRange30: 30.0.0.0/16
+clientIpRange60: 60.0.0.0/16
+
+jdkVer: 11.0.18
+#tom_Ver: 9.0.34
+tomVer: 10.1.13
+tomInstallDir: /usr/local
+tomPort: 8010
+

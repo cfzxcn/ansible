@@ -1,0 +1,14 @@
+[global]
+pid = run/php-fpm.pid
+ 
+[www]
+user = php
+group = php
+listen = 127.0.0.1:{{ php5640Port }}
+ 
+pm = dynamic
+pm.max_children = 5
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+

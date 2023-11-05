@@ -1,0 +1,68 @@
+#- hosts: sql 
+#  gather_facts: no
+#  tasks:
+    - name: sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no {{ hostName }}
+      shell: "for i in pxc2 pxc3 controller;do sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no $i;done"
+      when: ansible_fqdn == 'controller.st.cn'
+
+    - name: yum remove rabbitmq-server
+      yum: name=rabbitmq-server state=removed
+      ignore_errors: true
+
+    - name: Del /var/lib/rabbitmq/
+      shell: 'if [ -d /var/lib/rabbitmq/ ];then rm -rf /var/lib/rabbitmq/;fi'
+      ignore_errors: true
+
+    - name: 添加EPEL仓库
+      copy: src="../../php/files/epel.repo" dest=/etc/yum.repos.d/epel.repo
+
+    - name: yum install rabbitmq-server
+      yum: name=rabbitmq-server
+     
+    - name: start rabbitmq-server
+      service: name='rabbitmq-server.service' state=started enabled=yes
+
+    - name: add openstack user...
+      shell: 'rabbitmqctl add_user openstack cf && rabbitmqctl set_user_tags openstack administrator && rabbitmqctl set_permissions openstack ".*" ".*" ".*"'
+      when: ansible_fqdn == 'controller.st.cn'
+      ignore_errors: true
+
+    - name: rabbitmqctl change_password guest cf
+      shell: "rabbitmqctl change_password guest cf"
+      when: ansible_fqdn == 'controller.st.cn'
+
+    - name: cp rabbitmq-env.conf to all rabbitmq node
+      template: src=rabbitmq-env.conf.j2 dest=/etc/rabbitmq/rabbitmq-env.conf
+      notify: restart rabbitmq-server
+
+    - name: rabbitmq-plugins enable rabbitmq_management
+      shell: "rabbitmq-plugins enable rabbitmq_management"
+
+    - name: Insert '{cluster_partition_handling, autoheal}' to /etc/rabbitmq/rabbitmq.config
+      lineinfile: 
+        path: /etc/rabbitmq/rabbitmq.config
+        insertbefore: "%% To listen on a specific interface(.*)"
+        line: '{cluster_partition_handling, autoheal}'
+        backup: true
+#  防止脑裂
+    - name: Restart rabbitmq-server.service
+      service: "name=rabbitmq-server.service state=restarted"
+
+    - name: controller send erlang.cookie to pxc2 pxc3
+      shell: "for i in 2 3;do scp /var/lib/rabbitmq/.erlang.cookie pxc$i:/var/lib/rabbitmq;done"
+      when: ansible_fqdn == 'controller.st.cn'
+#      notify: restart rabbitmq-server
+
+    - name: Restart rabbitmq-server.service
+      service: name=rabbitmq-server.service state=restarted
+
+    - name: Create Ceph Cluster
+      shell: "rabbitmqctl stop_app && rabbitmqctl join_cluster --ram rabbit@controller && rabbitmqctl start_app"
+#      when: ansible_fqdn != 'controller'
+      when: ansible_fqdn == 'pxc2.st.cn' or ansible_fqdn == 'pxc3.st.cn'
+
+    - name: rabbitmqctl set_policy ha-all "^" '{"ha-mode":"all"}'
+      shell: rabbitmqctl set_policy ha-all "^" '{"ha-mode":"all"}'
+      when: ansible_fqdn == 'controller.st.cn'
+
+

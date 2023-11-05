@@ -1,0 +1,6 @@
+- name: restart cinder
+  service: name="openstack-cinder-api.service,openstack-cinder-scheduler.service" state=restarted
+
+- name: restart cinder msg
+  debug:
+    msg: "温馨提醒，cinder已重启"

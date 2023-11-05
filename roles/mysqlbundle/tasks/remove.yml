@@ -1,0 +1,34 @@
+---
+- hosts: sql
+  vars:
+    - src_mysql: mysql-5.7.31-linux-glibc2.12-x86_64
+    - BASEDIR: /usr/local/mysql
+    - DATADIR: /var/lib/mysql
+    - softName: mysql
+
+  tasks:
+  - name: stop service 
+    shell: systemctl stop mysqld && systemctl disable mysqld && systemctl daemon-reload
+
+  - name: remove python2-PyMySQL
+    yum: name=python2-PyMySQL state=absent
+
+  - name: yum erase mysql-community-{server,client,common,libs}-*
+    shell: yum erase -y mysql-community-{server,client,common,libs}-*
+
+  - name: Delete {{ softName }} user 
+    user: name={{ softName }} state=absent remove=yes
+
+  - name: delete files and dir
+    file: path={{ item }} state=absent
+    with_items: 
+      - /etc/my.cnf
+#      - "{{ BASEDIR }}"
+      - "{{ DATADIR }}"
+      - "/usr/local/{{ src_mysql }}"
+      - /etc/init.d/mysqld
+      - /etc/profile.d/mysqld.sh
+      - /var/log/mysqld.log
+      - /var/lib/mysql-files
+      - /usr/share/mysql
+      - /tmp/mysqlbundle 

@@ -1,0 +1,72 @@
+#- name: remove old mariadb
+#  shell: rpm -e --nodeps mariadb-devel mariadb-libs
+- name: yum install libaio,numactl-libs,expect,MySQL-python
+  yum: name=libaio,numactl-libs,expect,MySQL-python
+  when: ansible_os_family == "RedHat"
+
+- name: apt install libaio1,expect
+  apt: name=libaio1,expect update_cache=yes state=latest
+  when: ansible_os_family == "Debian"
+
+- name: create mysql group
+  group: name=mysql
+- name: create mysql user
+  user: name=mysql group=mysql shell=/sbin/nologin system=yes create_home=no
+
+- name: unarchive "{{ packName }}.{{ tarType }}" to remote host 
+  unarchive: src="{{ packName }}.{{ tarType }}" dest=/usr/local/ owner=root group=root
+#  unarchive: src="{{ packName }}.{{ tarType }}" dest=/usr/local/ owner=mysql group=mysql
+
+- name: Create soft link
+  file: src="/usr/local/{{ packName }}" dest="{{ BASEDIR }}" state=link force=yes
+
+#- name: Config {{ BASEDIR }} owner and group
+#  file: path="{{ BASEDIR }}" state=directory recurse=yes owner=mysql group=mysql
+
+- name: mkdir {{ DATADIR }}
+  file: path="{{ DATADIR }}" state=directory recurse=yes owner=mysql group=mysql mode=750
+
+- name: Append {{ BASEDIR }}/bin to ~/.bashrc
+  lineinfile: path='~/.bashrc' line='PATH={{ BASEDIR }}/bin:$PATH' backup=true
+
+#- name: Source PATH variable
+#  script: source.sh
+
+- name: Source PATH variable
+  shell: "source ~/.bashrc"
+  args:
+    executable: /bin/bash
+
+- name: Generate my.cnf
+  template: src=my.cnf dest=/etc/ backup=yes
+  notify: restart mysql
+
+- name: initialize "{{ DATADIR }}"
+#  shell: "{{ BASEDIR }}/bin/mysqld --initialize --user=mysql"
+#  shell: "{{ BASEDIR }}/bin/mysqld --initialize --user=mysql --basedir={{ BASEDIR }} --datadir={{ DATADIR }}"
+#  shell: "chdir={{ BASEDIR }} ./bin/mysqld --initialize --user=mysql --basedir={{ BASEDIR }} --datadir={{ DATADIR }}"
+  shell: "creates={{ DATADIR }}/ibdata1 chdir={{ BASEDIR }} ./bin/mysqld --initialize --user=mysql --basedir={{ BASEDIR }} --datadir={{ DATADIR }}"
+
+- name: mysql_ssl_rsa_setup
+  shell: "{{ BASEDIR }}/bin/mysql_ssl_rsa_setup --datadir={{ DATADIR }}"
+
+- name: cp {{ BASEDIR }}/support-files/mysql.server /etc/init.d/mysql
+  shell: /bin/cp {{ BASEDIR }}/support-files/mysql.server /etc/init.d/mysql
+
+- name: Start service mysql and daemon-reload
+  ansible.builtin.systemd:
+    state: started
+    enabled: true
+    daemon_reload: true
+    name: mysql
+
+- name: secure script
+  script: secure_mysql.sh
+
+- name: allow root login remotely
+#  shell: mysql -p{{ dbRootPasswd }} -e "update mysql.user set host = '%' where user = 'root';"
+  shell: chdir={{ BASEDIR }} ./bin/mysql -p{{ dbRootPasswd }} -e "update mysql.user set host = '%' where user = 'root';"
+  notify: restart mysql
+
+
+

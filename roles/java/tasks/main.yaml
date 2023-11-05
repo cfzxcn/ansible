@@ -1,0 +1,21 @@
+#- hosts: sql 
+#  gather_facts: no
+#  vars:
+#    tom_Ver: 10.1.13
+#    installDir: /usr/local
+#  tasks:
+    - name: yum remove openjdk 1.7.0 and 1.8.0
+      shell: if rpm -qa | grep openjdk;then yum remove -y '*openjdk*';fi
+
+    - name: Unarchive jdk-{{ jdkVer }}_linux-x64_bin.tar.gz
+      unarchive:
+        src: jdk-{{ jdkVer }}_linux-x64_bin.tar.gz
+        dest: "{{ installDir }}"
+
+    - name: Create jdk-{{ jdkVer }} soft link
+      file: "src={{ installDir }}/jdk-{{ jdkVer }} dest={{ installDir }}/java state=link force=yes"
+
+    - name: set jdk global env
+      shell: echo -e "export JAVA_HOME=/usr/local/java\nexport PATH=\$JAVA_HOME/bin:$PATH\nexport CLASSPATH=.:\$JAVA_HOME/lib/dt.jar:\$JAVA_HOME/lib/tools.jar" > /etc/profile.d/java.sh && source /etc/profile.d/java.sh
+
+    - include_tasks: install_tomcat.yml

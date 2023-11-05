@@ -1,0 +1,10 @@
+#- name: Deploy pxc57 or pxc8 
+- include_tasks: add_pxc_repo.yml
+#- include_tasks: install_package.yml
+#- include_tasks: push_certs.yml
+#- include_tasks: push_my_cnf.yml
+#- include_tasks: start_bootstrap_node.yml
+#- include_tasks: alter_root_password.yml
+#- include_tasks: create_database.yml
+#- include_tasks: start_other_nodes.yml
+

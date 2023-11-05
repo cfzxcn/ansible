@@ -1,0 +1,49 @@
+#- name: remove old mariadb
+#  shell: rpm -e --nodeps mariadb-devel mariadb-libs
+- name: yum remove old-mariadb
+  shell: "/bin/bash -c 'rpm -qa | grep -i mariadb && (yum remove -y mariadb*;yum remove -y MariaDB*)'"
+#  shell: if rpm -qa | grep -i mariadb;then yum remove -y mariadb*;yum remove -y MariaDB*;fi
+
+- name: mv OpenStack-train.repo... to /tmp
+  shell: cd /etc/yum.repos.d/ && if [ -f CentOS-OpenStack-train.repo ];then mv CentOS-QEMU-EV.repo CentOS-Ceph-Nautilus.repo CentOS-NFS-Ganesha-28.repo CentOS-Storage-common.repo CentOS-OpenStack-train.repo /tmp && yum remove -y centos-release-openstack-train;fi 
+
+- name: install deps packages                                            
+  yum: name=libaio,numactl-libs,expect,MySQL-python update_cache=true
+
+- name: cp mysql80-community-release-el7-8.noarch.rpm to client
+  copy: src=mysql80-community-release-el7-8.noarch.rpm dest=/tmp
+
+- name: Install mysql80-community-release-el7-8.noarch.rpm to client
+  yum: name=/tmp/mysql80-community-release-el7-8.noarch.rpm update_cache=true
+  ignore_errors: true
+
+- name: change to mysql57-community
+  shell: yum-config-manager --enable mysql57-community && yum-config-manager --disable mysql80-community
+# 如果要安装8.0就注释以上两句
+
+- name: install Mysql
+  yum: name=mysql-community-server
+  ignore_errors: true
+
+- name: systemctl enable --now mysqld
+  service: name=mysqld state=started enabled=yes
+  ignore_errors: true
+
+- name: Generate my.cnf
+  copy: src=my.cnf dest=/etc/my.cnf backup=yes owner=root group=root mode=644
+#  notify: restart mysqld
+
+- name: restart mysqld
+  service: name=mysqld state=restarted
+
+- name: secure script
+  script: secure_mysql.sh
+
+- name: allow root login remotely
+#  shell: mysql -p{{ CFPASSWD }} -e "update mysql.user set host = '%' where user = 'root';"
+  shell: mysql -p{{ CFPASSWD }} -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'my@sql';"
+#上条是5.7的方法
+#  shell: mysql -p{{ CFPASSWD }} -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'my@sql'; update mysql.user set host = '%' where user ='root'; FLUSH PRIVILEGES;"
+# 上条是8.0的方法
+
+

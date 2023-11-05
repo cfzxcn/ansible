@@ -1,0 +1,56 @@
+- name: yum Install lvm2 device-mapper-persistent-data
+  yum: name="lvm2,device-mapper-persistent-data"
+  
+- name: systemctl enable --now lvm2-lvmetad
+  service: name=lvm2-lvmetad state=started enabled=yes
+
+- name: pvcreate and vgcreate /dev/sdb
+  shell: lsblk | grep lvm &>/dev/null || (pvcreate /dev/sdb && vgcreate cinder-cfvg /dev/sdb)
+
+- name: Insert 'filter = [ "a/sdb/", "r/.*/"]' to /etc/lvm/lvm.conf
+#  dest: /opt/k8s/init-master.sh
+  lineinfile: path=/etc/lvm/lvm.conf insertafter="# Accept every block(.*)" line='filter = [ "a/sdb/", "r/.*/"]' backup=true
+
+- name: yum Install openstack-cinder targetcli python-keystone
+  yum: name="openstack-cinder,targetcli,python-keystone"
+  
+- name: Backup {{ cinderName }} conf
+  shell: if [ ! -f /etc/"{{ cinderName }}"/"{{ cinderName }}".conf.original ];then cd /etc/"{{ cinderName }}"/ && mv "{{ cinderName }}".conf "{{ cinderName }}".conf.original && egrep -v '^(#|$)' "{{ cinderName }}".conf.original > "{{ cinderName }}".conf && chown root:"{{ cinderName }}" "{{ cinderName }}".conf;fi
+
+
+- name: Modify "{{ cinderName }}" conf
+  shell: >
+    openstack-config --set /etc/cinder/cinder.conf DEFAULT transport_url rabbit://openstack:cf@controller &&
+    openstack-config --set /etc/cinder/cinder.conf DEFAULT my_ip "{{ localIp }}" &&
+    openstack-config --set /etc/cinder/cinder.conf DEFAULT enabled_backends lvm &&
+    openstack-config --set /etc/cinder/cinder.conf DEFAULT glance_api_servers http://controller:9292 &&
+    openstack-config --set /etc/cinder/cinder.conf DEFAULT auth_strategy keystone &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken www_authenticate_uri http://controller:5000 &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken auth_url http://controller:5000 &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken memcached_servers controller:11211 &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken auth_type password &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken project_domain_name Default &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken user_domain_name Default &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken project_name service &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken username "{{ cinderName }}" &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken password "{{ servicePasswd }}" &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf database connection mysql+pymysql://"{{ cinderName }}":"{{ dbSpasswd }}"@controller:"{{ dbPort }}"/"{{ cinderName }}" &&
+    openstack-config --set /etc/cinder/cinder.conf oslo_concurrency lock_path /var/lib/cinder/tmp &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf lvm volume_driver cinder.volume.drivers.lvm.LVMVolumeDriver &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf lvm volume_group cinder-cfvg &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf lvm target_protocol iscsi &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf lvm target_helper lioadm
+
+- name: systemctl enable --now openstack-cinder-volume target
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  with_items:
+    - openstack-cinder-volume
+    - target
+  ignore_errors: true
+
+#- name: ln -s /etc/openstack-dashboard /usr/share/openstack-dashboard/openstack_dashboard/conf
+#  file: src=/etc/openstack-dashboard dest=/usr/share/openstack-dashboard/openstack_dashboard/conf state=link
+# /etc/openstack-dashboard是安装horizon后才有的，所以要先运行horizon剧本，再运行此剧本，如果先运行此剧本，会报错：说没有/etc/openstack-dashboard

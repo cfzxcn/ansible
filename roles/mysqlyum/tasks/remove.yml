@@ -1,0 +1,44 @@
+---
+- hosts: 192.168.1.30
+  vars:
+    - src_mysql: mysql-5.7.31-linux-glibc2.12-x86_64
+    - BASEDIR: /usr/local/mysql
+    - DATADIR: /var/lib/mysql
+
+  tasks:
+  - name: Stop mysqld service 
+    ansible.builtin.systemd:
+      state: stopped
+      enabled: false
+      daemon_reload: true
+      name: "mysqld.service"
+
+  - name: Remove python2-PyMySQL MySQL-python
+    yum: name=python2-PyMySQL,MySQL-python state=absent
+# 慎重删除，因为删除这两个会同时删除openstack的许多组件
+
+  - name: yum remove -y mysql-community-server
+    yum: name=mysql-community-server state=absent
+
+  - name: Delete MySQL User 
+    user: name=mysql state=absent remove=yes
+
+  - name: Delete files and dir
+    shell: "{{ item }}"
+    with_items: 
+      - "rm -rf /var/lib/mysql"
+      - "rm -rf /tmp/mysql80-community-release-el7-8.noarch.rpm"
+      - "rm -rf /var/log/mysqld.log"
+# /var/log/mysqld.log必须删除，否则再次安装的时候grep到的临时密码还是上次的，就无法继续执行mysql_secure_installation
+      - "rm -rf /usr/bin/mysql*"
+      - "rm -rf /usr/lib64/mysql"
+      - "rm -rf /usr/share/doc/mysql-community*"
+      - "rm -rf /usr/share/man/man1/mysql*"
+      - "rm -rf /etc/yum.repos.d/mysql-community*"
+#      - "rm -rf /usr/share/mysql-8.0"
+#8.0要删除的
+      - "rm -rf /usr/share/mysql"
+#5.7要删除的
+      - "rm -rf /root/.mysql_history"
+      - "rm -rf /etc/ld.so.conf.d/mysql-x86_64.conf"
+ 

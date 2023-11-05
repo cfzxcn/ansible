@@ -1,0 +1,42 @@
+#- hosts: sql 
+#  gather_facts: no
+#  vars_files:
+#    - ../vars/main.yml
+
+#  tasks:
+    - name: Download apache-tomcat-{{ tomVer }}.tar.gz
+      get_url: url=http://mirrors.ustc.edu.cn/apache/tomcat/tomcat-10/v{{ tomVer }}/bin/apache-tomcat-{{ tomVer }}.tar.gz dest=/tmp
+    
+    - name: Unarchive apache-tomcat-{{ tomVer }}.tar.gz
+      unarchive:
+        src: "/tmp/apache-tomcat-{{ tomVer }}.tar.gz"
+        dest: "{{ tomInstallDir }}"
+        copy: no
+
+    - name: mkdir soft link dir
+      file: "path={{ tomInstallDir }}/tomcat state=directory"
+    
+    - name: Create tomcat-{{ tomVer }} soft link
+      file: "src={{ tomInstallDir }}/apache-tomcat-{{ tomVer }} dest={{ tomInstallDir }}/tomcat state=link force=yes"
+    
+    - name: set apache-tomcat global env
+      shell: echo "export PATH={{ tomInstallDir }}/tomcat/bin:$PATH" > /etc/profile.d/java.sh && source /etc/profile.d/java.sh
+
+    - name: copy tomcat.service to client
+      template: "src=tomcat.service.j2 dest=/usr/lib/systemd/system/tomcat.service"
+    
+    - name: copy tomcat config file to client
+      template: "src=server.xml.j2 dest={{ tomInstallDir }}/tomcat/conf/server.xml backup=yes"
+      notify: restart tomcat
+    
+    - name: copy tomcat index.html to client
+      template:
+        src: index.html.j2
+        dest: "{{ tomInstallDir }}/tomcat/webapps/ROOT/index.html"
+        backup: yes 
+    
+    - name: Start tomcat
+#      shell: nohup startup.sh &
+      service: name=tomcat state=started enabled=yes
+
+

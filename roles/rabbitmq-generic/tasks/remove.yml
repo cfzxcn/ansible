@@ -1,0 +1,23 @@
+---
+- hosts: sql
+  vars:
+#    - BASEDIR: /usr/local/mysql
+    - softName: rabbitmq
+
+  tasks:
+  - name: stop rabbitmq-server service 
+#    shell: systemctl stop rabbitmq-server && systemctl disable rabbitmq-server && systemctl daemon-reload
+    service: name=rabbitmq-server state=stopped 
+
+  - name: yum remove rabbitmq-server
+    yum: name=rabbitmq-server state=absent 
+
+  - name: Delete {{ softName }} user 
+    user: name={{ softName }} state=absent remove=yes
+
+  - name: delete rabbitmq-server files and dir
+    file: path={{ item }} state=absent
+    with_items: 
+#     - "{{ BASEDIR }}"
+      - /etc/rabbitmq
+      - /var/log/rabbitmq

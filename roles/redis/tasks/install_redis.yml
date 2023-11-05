@@ -1,0 +1,32 @@
+- name: config redis cluster.conf
+  template:
+    src: '{{ item.src }}'
+    dest: '{{ redisClusterDir }}/{{ item.dest }}'
+  with_items:
+    - { src: redis3000.conf.j2, dest: redis3000.conf }
+    - { src: templates/redis3001.conf.j2, dest: redis3001.conf }
+    - { src: templates/redis3002.conf.j2, dest: redis3002.conf }
+
+- name: copy redis start files
+  copy:
+    src: '{{ item.src }}'
+    dest: '{{ systemd_basedir }}/{{ item.dest }}'
+    owner: 'root'
+    group: 'root'
+    mode: 0644
+    backup: no
+  with_items:
+    - { src: files/redis3000.service, dest: 'redis3000.service' }
+    - { src: 'redis3001.service', dest: 'redis3001.service' }
+    - { src: 'redis3002.service', dest: 'redis3002.service' }
+
+- name: copy redis-shutdown files
+  copy:
+    src: 'redis-shutdown'
+    dest: '/usr/libexec/redis-shutdown'
+    owner: 'root'
+    group: 'root'
+    mode: 0644
+    backup: no
+
+   

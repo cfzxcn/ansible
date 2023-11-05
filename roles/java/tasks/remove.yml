@@ -1,0 +1,22 @@
+---
+- hosts: sql
+#  vars:
+#    - src_mysql: mysql-5.7.31-linux-glibc2.12-x86_64
+#    - BASEDIR: /usr/local/mysql
+#    - DATADIR: /var/lib/mysql
+
+  tasks:
+  - name: stop tomcat service 
+    shell: systemctl stop tomcat && systemctl disable tomcat && systemctl daemon-reload
+
+  - name: delete tomcat files and dir
+    file: path={{ item }} state=absent
+    with_items: 
+#      - "{{ BASEDIR }}"
+      - /usr/lib/systemd/system/tomcat.service
+      - /etc/profile.d/java.sh
+      - /usr/local/tomcat
+      - /usr/local/apache-tomcat-10.1.13
+      - /tmp/apache-tomcat-10.1.13.tar.gz
+      - /usr/local/java
+      - /usr/local/jdk-11.0.18

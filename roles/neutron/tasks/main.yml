@@ -1,0 +1,209 @@
+- name:
+  block:
+    - name: Create user {{ neutronName }} with passwd in db,{{ neutronName }} db privileges and WITH GRANT OPTION in host
+      mysql_user:
+        login_user: cf
+        login_password: cf
+        login_host: "{{ ansible_default_ipv4.address }}"    
+        state: present
+        name: "{{ neutronName }}"
+        password: "{{ dbSpasswd }}"
+        host: "{{ item }}"
+        priv:
+          'neutron.*': 'ALL,GRANT'
+    #      '"{{ neutronName }}".*': 'ALL,GRANT'
+      with_items:
+        - localhost
+        - "%"
+    
+    - name: Create "{{ neutronName }}" user 
+      shell: source /etc/openrc.sh && openstack user list | grep "{{ neutronName }}" || openstack user create --domain default --password "{{ servicePasswd }}" "{{ neutronName }}"
+    
+    - name: openstack role add --project service --user "{{ neutronName }}" admin
+      shell: source /etc/openrc.sh && openstack service list | grep "{{ neutronName }}" || openstack role add --project service --user "{{ neutronName }}" admin
+    
+    - name: openstack service create --name "{{ neutronName }}" --description 'Placement API' "{{ neutronName }}"
+      shell: source /etc/openrc.sh && openstack service list | grep "{{ neutronName }}" || openstack service create --name "{{ neutronName }}" --description "OpenStack Networking" network
+    
+    - name: "Create endpoint on http://controller:{{ neutronPort }}" 
+      shell: source /etc/openrc.sh && if ! openstack endpoint list | grep "{{ neutronName }}";then openstack endpoint create --region RegionOne network public http://cfvip:"{{ neutronPort }}" && openstack endpoint create --region RegionOne network internal http://cfvip:"{{ neutronPort }}" && openstack endpoint create --region RegionOne network admin http://cfvip:"{{ neutronPort }}";fi
+
+  when: role == 'bootstrap'
+
+- name: Yum Install openstack-neutron openstack-neutron-ml2 openstack-neutron-openvswitch ebtables
+  yum: "name=openstack-{{ neutronName }},openstack-{{ neutronName }}-ml2,openstack-{{ neutronName }}-openvswitch,ebtables"
+
+- name: Backup "{{ neutronName }}" conf
+  shell: if [ ! -f /etc/"{{ neutronName }}"/"{{ neutronName }}".conf.original ];then cd /etc/"{{ neutronName }}"/ && mv "{{ neutronName }}".conf "{{ neutronName }}".conf.original && egrep -v '^(#|$)' "{{ neutronName }}".conf.original > "{{ neutronName }}".conf && chown root:"{{ neutronName }}" "{{ neutronName }}".conf;fi
+
+- name: Modify {{ neutronName }} conf
+  shell: >
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT core_plugin ml2 &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT service_plugins router &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT allow_overlapping_ips true &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT transport_url rabbit://openstack:cf@cfvip &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT auth_strategy keystone &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT notify_nova_on_port_status_changes true &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT notify_nova_on_port_data_changes true &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf database connection mysql+pymysql://"{{ neutronName }}":"{{ dbSpasswd }}"@cfvip:"{{ dbPort }}"/"{{ neutronName }}" &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken www_authenticate_uri http://cfvip:5000 &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken auth_url http://cfvip:5000 &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken memcached_servers ha1:11211,ha2:11211,ha3:11211 &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken auth_type password &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken project_domain_name Default &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken user_domain_name Default &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken project_name service &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken username "{{ neutronName }}" &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken password "{{ servicePasswd }}" &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf nova auth_url http://cfvip:5000 &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf nova auth_type password &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf nova project_domain_name default &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf nova user_domain_name default &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf nova region_name RegionOne &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf nova project_name service &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf nova username "{{ novaName }}" &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf nova password "{{ servicePasswd }}" &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf oslo_concurrency lock_path /var/lib/neutron/tmp
+
+- name: Backup ml2_conf.ini
+  shell: "if [ ! -f /etc/neutron/plugins/ml2/ml2_conf.ini.original ];then cd /etc/neutron/plugins/ml2 && mv ml2_conf.ini ml2_conf.ini.original && egrep -v '^(#|$)' ml2_conf.ini.original > ml2_conf.ini && chown root:neutron ml2_conf.ini;fi"
+
+- name: Modify ml2_conf.ini
+  shell: >
+    openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 type_drivers flat,vxlan &&
+    openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types vxlan &&
+    openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch,l2population &&
+    openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 extension_drivers port_security &&
+    openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_flat flat_networks cfexnet &&
+    openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges 1:1000 &&
+    openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_ipset true
+
+- name: Backup openvswitch_agent.ini
+  shell: if [ ! -f /etc/neutron/plugins/ml2/openvswitch_agent.ini.original ];then cd /etc/neutron/plugins/ml2 && mv openvswitch_agent.ini openvswitch_agent.ini.original && egrep -v '^(#|$)' openvswitch_agent.ini.original > openvswitch_agent.ini && chown root:neutron openvswitch_agent.ini;fi
+
+- name: Modify openvswitch_agent.ini
+  shell: >
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs tunnel_bridge br-tun &&
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs local_ip {{ ansible_facts.ens34.ipv4.address }} &&
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs bridge_mappings cfexnet:br-ex &&
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini agent tunnel_types vxlan &&
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini agent l2_population true &&
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini securitygroup enable_security_group true &&
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini securitygroup firewall_driver iptables_hybrid
+
+- name: Backup /etc/neutron/l3_agent.ini
+  shell: if [ ! -f /etc/neutron/l3_agent.ini.original ];then cd /etc/neutron/ && mv l3_agent.ini l3_agent.ini.original && egrep -v '^(#|$)' l3_agent.ini.original > l3_agent.ini && chown root:neutron l3_agent.ini;fi
+
+- name: Modify /etc/neutron/l3_agent.ini
+  shell: >
+    openstack-config --set /etc/neutron/l3_agent.ini DEFAULT interface_driver openvswitch &&
+    openstack-config --set /etc/neutron/l3_agent.ini DEFAULT external_network_bridge br-ex
+
+- name: Backup /etc/neutron/dhcp_agent.ini
+  shell: if [ ! -f /etc/neutron/dhcp_agent.ini.original ];then cd /etc/neutron/ && mv dhcp_agent.ini dhcp_agent.ini.original && egrep -v '^(#|$)' dhcp_agent.ini.original > dhcp_agent.ini && chown root:neutron dhcp_agent.ini;fi
+
+- name: Modify /etc/neutron/dhcp_agent.ini
+  shell: >
+    openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT interface_driver openvswitch &&
+    openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT dhcp_driver neutron.agent.linux.dhcp.Dnsmasq &&
+    openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT enable_isolated_metadata true
+
+- name: Backup /etc/neutron/metadata_agent.ini
+  shell: if [ ! -f /etc/neutron/metadata_agent.ini.original ];then cd /etc/neutron/ && mv metadata_agent.ini metadata_agent.ini.original && egrep -v '^(#|$)' metadata_agent.ini.original > metadata_agent.ini && chown root:neutron metadata_agent.ini;fi
+
+- name: Modify /etc/neutron/metadata_agent.ini
+  shell: >
+    openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT nova_metadata_host cfvip &&
+    openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_proxy_shared_secret cf
+
+- name: Yum install openstack-nova-api openstack-nova-conductor openstack-nova-novncproxy openstack-nova-scheduler 
+  yum: name="openstack-nova-api,openstack-nova-conductor,openstack-nova-novncproxy,openstack-nova-scheduler"
+
+- name: Backup /etc/nova/nova.conf
+  shell: if [ ! -f /etc/nova/nova.conf.original ];then cd /etc/nova/ && mv nova.conf nova.conf.original && egrep -v '^(#|$)' nova.conf.original > nova.conf && chown root:nova nova.conf;fi
+
+- name: Modify /etc/nova/nova.conf
+  shell: >
+    openstack-config --set /etc/nova/nova.conf neutron auth_url http://cfvip:5000 &&
+    openstack-config --set /etc/nova/nova.conf neutron auth_type password &&
+    openstack-config --set /etc/nova/nova.conf neutron project_domain_name default &&
+    openstack-config --set /etc/nova/nova.conf neutron user_domain_name default &&
+    openstack-config --set /etc/nova/nova.conf neutron region_name RegionOne &&
+    openstack-config --set /etc/nova/nova.conf neutron project_name service &&
+    openstack-config --set /etc/nova/nova.conf neutron username neutron &&
+    openstack-config --set /etc/nova/nova.conf neutron password cf &&
+    openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy true &&
+    openstack-config --set /etc/nova/nova.conf neutron metadata_proxy_shared_secret cf
+
+- name: ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+  file: src=/etc/neutron/plugins/ml2/ml2_conf.ini dest=/etc/neutron/plugin.ini state=link
+#  shell: ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+
+- name: "{{ neutronName }} initialize"
+  shell: su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+  when: role == 'bootstrap'
+
+- name: Restart openstack-nova-api service
+  service: name="openstack-nova-api" state=restarted
+  ignore_errors: true
+
+- name: Start neutron-server neutron-dhcp-agent openvswitch neutron-openvswitch-agent neutron-metadata-agent
+  service: 
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - neutron-server
+    - neutron-dhcp-agent
+    - openvswitch
+    - neutron-openvswitch-agent
+    - neutron-metadata-agent
+#  systemd: name="neutron-server.service,neutron-dhcp-agent.service,openvswitch.service,neutron-openvswitch-agent.service,neutron-metadata-agent.service state=started enabled=true daemon_reload=true"
+#  service: name="neutron-server,neutron-dhcp-agent,openvswitch,neutron-openvswitch-agent,neutron-metadata-agent state=started enabled=yes"
+  ignore_errors: true
+
+- name: Config ifcfg-br-ex
+  shell:
+    cmd: |
+      echo -e "\n" > /etc/sysconfig/network-scripts/ifcfg-br-ex
+      cat > /etc/sysconfig/network-scripts/ifcfg-br-ex <<EOF
+      TYPE=OVSBridge
+      IPADDR={{ ansible_default_ipv4.address }}
+      PREFIX=24
+      GATEWAY=192.168.1.2
+      DNS1=192.168.1.2
+      DNS2=180.76.76.76
+      NAME=br-ex
+      DEVICE=br-ex
+      DEVICETYPE=ovs
+      ONBOOT="yes"
+      EOF
+
+- name: Config ifcfg-ens33
+  shell:
+    cmd: |
+      echo -e "\n" > /etc/sysconfig/network-scripts/ifcfg-ens33
+      cat > /etc/sysconfig/network-scripts/ifcfg-ens33 <<EOF
+      TYPE=OVSPort
+      OVS_BRIDGE=br-ex
+      DEVICETYPE=ovs
+      BOOTPROTO=none
+      NAME=ens33
+      DEVICE=ens33
+      ONBOOT=yes
+      EOF
+
+- name: ifdown ens33;ifup ens33;ifdown br-ex;ifup br-ex
+#  shell: ifdown ens33;ifup ens33;ifdown br-ex;ifup br-ex
+  systemd: name=network state=restarted
+# 如果不用上条，br-ex无法访问外网，也ping不通其它192.168.1.x,原因未知
+
+- name: ovs-vsctl add-br br-ex and ovs-vsctl add-port br-ex ens33
+  shell: if [ ! -f /etc/sysconfig/network-scripts/ifcfg-br-ex ];then ovs-vsctl add-br br-ex && ovs-vsctl add-port br-ex ens33;fi
+  ignore_errors: true
+
+- name: Start neutron-l3-agent
+  service: name=neutron-l3-agent state=started enabled=yes
+
+
+

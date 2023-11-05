@@ -1,0 +1,176 @@
+#- name: Append "export LC_ALL=C" to /etc/profile.d/prompt.sh
+#  lineinfile: path=/etc/profile.d/prompt.sh line='export LC_ALL=C'
+##不加上下两项，ssh 192.168.1.61时，会报：perl: warning: Setting locale failed.
+#- name: source /etc/profile.d/prompt.sh
+#  shell: source /etc/profile.d/prompt.sh
+- name: deliver root authorized_keys
+  authorized_key:
+    user: root
+    key: "{{ lookup('file', '/root/.ssh/id_rsa.pub') }}"
+    state: present
+
+- name: Create Normal User andy
+  user: name=andy password={{'cf' | password_hash('sha512')}} state=present 
+
+- name: Append andy to /etc/sudoers
+  lineinfile: path=/etc/sudoers line='andy ALL=(ALL) NOPASSWD:ALL' backup=true
+
+#- name: deliver andy authorized_keys
+#  authorized_key:
+#    user: andy
+#    key: "{{ lookup('file', '/home/andy/.ssh/id_rsa.pub') }}"
+#  ignore_errors: true
+- name: yum install sshpass
+  yum: name=sshpass
+
+- name: Generate controller.st.cn's root's ssh-keygen
+  shell: '[ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -q -N "" -f ~/.ssh/id_rsa'
+  when: ansible_fqdn=='controller.st.cn'
+
+- name: controller sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no {{ hostName }}
+  shell: "for i in pxc2 pxc3 controller;do sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no $i;done"
+  when: ansible_fqdn == 'controller.st.cn'
+
+- name: 关闭firewalld
+  service: name=firewalld state=stopped enabled=no
+
+- name: iptables -F
+  shell: iptables -F
+
+#- name: 永久关闭 selinux
+#  lineinfile:
+#    dest: /etc/selinux/config
+#    regexp: "^SELINUX="
+#    line: "SELINUX=disabled"
+- name: Disable SELinux
+  ansible.posix.selinux:
+    state: disabled
+  register: selinux_status
+
+- name: 临时关闭 selinux
+  command: "/sbin/setenforce 0"
+#  shell: "setenforce 0"
+#  failed_when: false
+  when: selinux_status.state != "disabled"
+
+- name: Set hostname for {{ hostName }}
+  ansible.builtin.hostname:
+    name: "{{ hostName }}"
+  ignore_errors: true
+
+- name: Replace /etc/hosts
+  copy: src="hosts" dest=/etc/hosts backup=yes
+
+#- name: 注释/etc/chrony.conf中所有以server开头的行
+#  replace:
+#    path: /etc/chrony.conf
+##    dest: /etc/chrony.conf
+#    regexp: "^server"
+#    replace: "#server"
+#
+#- name: 注释/etc/chrony.conf中所有以allow开头的行
+#  replace:
+#    path: /etc/chrony.conf
+#    regexp: "^allow"
+#    replace: "#allow"
+#
+#- name: Append 'server controller iburst' to /etc/chrony.conf
+##  dest: /opt/k8s/init-master.sh
+#  lineinfile: path=/etc/chrony.conf insertbefore="# Use public servers(.*)" line='server controller iburst' backup=true
+#
+#- name: Restart chronyd service
+#  service: name=chronyd state=restarted
+
+- name: Stop postfix/avahi-daemon/rpcbind/cups
+  service: 
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  with_items: 
+    - 'postfix.service'
+    - 'rpcbind'
+    - 'avahi-daemon'
+    - 'cups.path'
+    - 'cups.service'
+    - 'cups.socket'
+    - 'cups-browsed.service'
+  ignore_errors: true
+
+- name: pkill dnsmasq
+  shell: "pkill dnsmasq"
+
+- name: Remove dnsmasq
+  yum: name=dnsmasq state=absent
+
+- name: init 3
+  shell: systemctl set-default multi-user.target && init 3
+
+- name: Config ifcfg-{{ ensX }}
+  shell:
+#    removes: "/etc/sysconfig/network-scripts/ifcfg-{{ ensX }}"
+# removes:如果文件不存在，不会执行后面的命令
+    cmd: |
+      echo -e "\n" > /etc/sysconfig/network-scripts/ifcfg-{{ ensX }}
+      cat > /etc/sysconfig/network-scripts/ifcfg-{{ ensX }} <<EOF
+      TYPE=Ethernet
+      BOOTPROTO=none
+      NAME={{ ensX }}
+      DEVICE={{ ensX }}
+      ONBOOT=yes
+      IPADDR={{ ensXip }}
+      PREFIX=24
+      EOF
+
+#- name: ifdown {{ ensX }};ifup {{ ensX }}
+#  shell: "if [ -f /etc/sysconfig/network-scripts/ifcfg-{{ ensX }} ];then ifdown {{ ensX }};ifup {{ ensX }};fi"
+
+- name: Restart network service for interface {{ ensX }}
+  ansible.builtin.service:
+    name: network
+    state: restarted
+    args: "{{ ensX }}"
+#- name: Modity /etc/sysctl.conf 
+#  lineinfile: path=/etc/sysctl.conf line='net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1'
+
+- name: Modity /etc/sysctl.conf
+  ansible.builtin.lineinfile:
+    path: /etc/sysctl.conf
+    line: '{{ item }}'
+  with_items:
+    - 'net.ipv4.ip_forward = 1'
+    - 'net.bridge.bridge-nf-call-iptables = 1'
+    - 'net.bridge.bridge-nf-call-ip6tables = 1'
+    - 'net.ipv4.ip_nonlocal_bind = 1'
+    - 'net.ipv4.conf.all.rp_filter = 0'
+    - 'net.ipv4.conf.default.rp_filter = 0'
+    - '## default 1'
+    - 'net.ipv4.tcp_syncookies = 1'
+    - '## default 0'
+    - 'net.ipv4.tcp_tw_reuse = 1'
+    - '## default 0'
+    - 'net.ipv4.tcp_tw_recycle = 1'
+    - '## default 60'
+    - 'net.ipv4.tcp_fin_timeout = 30'
+    - '## default 256'
+    - 'net.ipv4.tcp_max_syn_backlog = 4096'
+    - '## default 32768 60999'
+    - 'net.ipv4.ip_local_port_range = 1024 65535'
+    - '## default 129=8'
+    - 'net.core.somaxconn = 32768'
+
+#- name: yum install centos-release-openstack-train
+#  yum: name=centos-release-openstack-train update_cache=true
+#
+#- name: yum install python-openstackclient,openstack-utils
+#  yum: name="python-openstackclient,openstack-utils"
+#  ignore_errors: true
+#
+#- name: To install the ceph release.asc key
+#  shell: rpm --import 'https://download.ceph.com/keys/release.asc'
+#
+#- name: Add ceph repo
+#  copy: src='ceph.repo' dest=/etc/yum.repos.d
+#
+#- name: yum install ceph-common
+#  yum: name='ceph-common'
+

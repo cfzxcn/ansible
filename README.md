@@ -35,6 +35,8 @@ co7上实现OpenStack train版:
 实现了horizon的剧本卸载
 
 
+co7上实现OpenStack train版cluster:
+
 Role Name
 =========
 

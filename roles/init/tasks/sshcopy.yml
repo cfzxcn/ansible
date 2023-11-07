@@ -27,3 +27,7 @@
 #  shell: "for i in 1 2;do sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no master$i;done"
   shell: "for i in 1 2 3;do sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no ha$i;done"
 #  when: ansible_fqdn == 'controller.st.cn'
+
+- name: All nodes sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no all nodes
+#  shell: "for i in 1 2;do sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no master$i;done"
+  shell: "for i in controller pxc2 pxc3;do sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no $i;done"

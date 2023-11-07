@@ -60,6 +60,7 @@ keystone-manage credential_setup --keystone-user keystone --keystone-group keyst
 - name: chown -R keystone:keystone /etc/keystone/fernet-keys/credential-keys
   file: 
     path: "/etc/keystone/{{ item }}"
+    recurse: yes
     owner: keystone
     group: keystone
   loop:

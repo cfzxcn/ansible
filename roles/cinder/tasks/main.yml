@@ -29,10 +29,11 @@
       shell: source /etc/openrc.sh && openstack service list | grep "{{ cinderName }}"v3 || openstack service create --name "{{ cinderName }}"v3 --description "OpenStack Block Storage" volumev3
     
     - name: Create endpoint volumev2 on http://controller:{{ cinderPort }}
-      shell: source /etc/openrc.sh && if ! openstack endpoint list | grep volumev2;then openstack endpoint create --region RegionOne volumev2 public http://{{ ansible_hostname }}:{{ cinderPort }}/v2/%\(project_id\)s && openstack endpoint create --region RegionOne volumev2 internal http://{{ ansible_hostname }}:{{ cinderPort }}/v2/%\(project_id\)s && openstack endpoint create --region RegionOne volumev2 admin http://{{ ansible_hostname }}:{{ cinderPort }}/v2/%\(project_id\)s;fi
-    
+      shell: source /etc/openrc.sh && if ! openstack endpoint list | grep volumev2;then openstack endpoint create --region RegionOne volumev2 public http://cfvip:{{ cinderPort }}/v2/%\(project_id\)s && openstack endpoint create --region RegionOne volumev2 internal http://cfvip:{{ cinderPort }}/v2/%\(project_id\)s && openstack endpoint create --region RegionOne volumev2 admin http://cfvip:{{ cinderPort }}/v2/%\(project_id\)s;fi
+#      shell: source /etc/openrc.sh && if ! openstack endpoint list | grep volumev2;then openstack endpoint create --region RegionOne volumev2 public http://{{ ansible_hostname }}:{{ cinderPort }}/v2/%\(project_id\)s && openstack endpoint create --region RegionOne volumev2 internal http://{{ ansible_hostname }}:{{ cinderPort }}/v2/%\(project_id\)s && openstack endpoint create --region RegionOne volumev2 admin http://{{ ansible_hostname }}:{{ cinderPort }}/v2/%\(project_id\)s;fi
+
     - name: Create endpoint volumev3 on http://controller:{{ cinderPort }}
-      shell: source /etc/openrc.sh && if ! openstack endpoint list | grep volumev3;then openstack endpoint create --region RegionOne volumev3 public http://{{ ansible_hostname }}:{{ cinderPort }}/v3/%\(project_id\)s && openstack endpoint create --region RegionOne volumev3 internal http://{{ ansible_hostname }}:{{ cinderPort }}/v3/%\(project_id\)s && openstack endpoint create --region RegionOne volumev3 admin http://{{ ansible_hostname }}:{{ cinderPort }}/v3/%\(project_id\)s;fi
+      shell: source /etc/openrc.sh && if ! openstack endpoint list | grep volumev3;then openstack endpoint create --region RegionOne volumev3 public http://cfvip:{{ cinderPort }}/v3/%\(project_id\)s && openstack endpoint create --region RegionOne volumev3 internal http://cfvip:{{ cinderPort }}/v3/%\(project_id\)s && openstack endpoint create --region RegionOne volumev3 admin http://cfvip:{{ cinderPort }}/v3/%\(project_id\)s;fi
   when: role == 'bootstrap'
 
 - name: Yum Install "{{ cinderName }}"
@@ -42,22 +43,23 @@
 - name: Backup {{ cinderName }} conf
   shell: if [ ! -f /etc/"{{ cinderName }}"/"{{ cinderName }}".conf.original ];then cd /etc/"{{ cinderName }}"/ && mv "{{ cinderName }}".conf "{{ cinderName }}".conf.original && egrep -v '^(#|$)' "{{ cinderName }}".conf.original > "{{ cinderName }}".conf && chown root:"{{ cinderName }}" "{{ cinderName }}".conf;fi
 
+#    openstack-config --set /etc/cinder/cinder.conf DEFAULT transport_url rabbit://openstack:cf@cfvip &&
 - name: Modify "{{ cinderName }}" conf
   shell: >
-    openstack-config --set /etc/cinder/cinder.conf DEFAULT transport_url rabbit://openstack:cf@{{ ansible_hostname }} &&
+    openstack-config --set /etc/cinder/cinder.conf DEFAULT transport_url rabbit://openstack:cf@cfvip &&
     openstack-config --set /etc/cinder/cinder.conf DEFAULT my_ip {{ ansible_facts.ens34.ipv4.address }} &&
     openstack-config --set /etc/cinder/cinder.conf DEFAULT auth_strategy keystone &&
-    openstack-config --set /etc/cinder/cinder.conf DEFAULT glance_api_servers http://{{ ansible_hostname }}:9292 &&
-    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken www_authenticate_uri http://{{ ansible_hostname }}:5000 &&
-    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken auth_url http://{{ ansible_hostname }}:5000 &&
-    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken memcached_servers {{ ansible_hostname }}:11211 &&
+    openstack-config --set /etc/cinder/cinder.conf DEFAULT glance_api_servers http://cfvip:9292 &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken www_authenticate_uri http://cfvip:5000 &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken auth_url http://cfvip:5000 &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken memcached_servers controller:11211,pxc2:11211,pxc3:11211 &&
     openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken auth_type password &&
     openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken project_domain_name Default &&
     openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken user_domain_name Default &&
     openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken project_name service &&
     openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken username "{{ cinderName }}" &&
     openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf keystone_authtoken password "{{ servicePasswd }}" &&
-    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf database connection mysql+pymysql://"{{ cinderName }}":"{{ dbSpasswd }}"@{{ ansible_hostname }}:"{{ dbPort }}"/"{{ cinderName }}" &&
+    openstack-config --set /etc/"{{ cinderName }}"/"{{ cinderName }}".conf database connection mysql+pymysql://"{{ cinderName }}":"{{ dbSpasswd }}"@cfvip:3306/"{{ cinderName }}" &&
     openstack-config --set /etc/cinder/cinder.conf oslo_concurrency lock_path /var/lib/cinder/tmp
 
 - name: Modify /etc/nova/nova.conf
@@ -73,10 +75,5 @@
 
 - name: systemctl enable --now openstack-cinder-api openstack-cinder-scheduler
   shell: systemctl enable --now openstack-cinder-api openstack-cinder-scheduler
-
-
-
-
-
 
 

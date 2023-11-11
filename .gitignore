@@ -4,4 +4,5 @@
 *.tar.bz2
 *.tar.gz
 *.tar.xz
-roles/k8sbinary/files/kubernetes/
+*.tar
+roles/k8sbinary/files/kubernetes/*

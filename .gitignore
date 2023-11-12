@@ -6,9 +6,15 @@
 *.tar.xz
 *.tar
 <<<<<<< HEAD
+<<<<<<< HEAD
 *.mp4
 #roles/k8sbinary/files/kubernetes/
 /roles/k8sbinary/files/*
 =======
 roles/k8sbinary/files/kubernetes/*
 >>>>>>> 1805303e8f7dc051a78773d3360b8377be9f6085
+=======
+*.mp4
+#roles/k8sbinary/files/kubernetes/
+/roles/k8sbinary/files/*
+>>>>>>> d95da614cbd67e02a02926355f3b56749babb315

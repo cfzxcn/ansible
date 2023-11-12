@@ -36,7 +36,8 @@ listen stats
 #  stats  hide-version
 ##另外官方示例为检测9200（心跳）端口，测试在mariadb服务宕机的情况下，虽然”/usr/bin/clustercheck”脚本已探测不到服务，但受xinetd控制的9200端口依然正常，导致haproxy始终将请求转发到mariadb服务宕机的节点，暂时修改为监听3306端口
 listen pxc_cluster
-  bind cfvip:{{ vipdbPort }}
+#  bind cfvip:{{ vipdbPort }}
+  bind cfvip:3306
 #  balance  source
   balance  leastconn
   mode   http

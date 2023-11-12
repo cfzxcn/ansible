@@ -30,16 +30,17 @@
       shell: source /etc/openrc.sh && if ! openstack endpoint list | grep "{{ novaName }}";then openstack endpoint create --region RegionOne compute public http://cfvip:{{ novaPort }}/v2.1 && openstack endpoint create --region RegionOne compute internal http://cfvip:{{ novaPort }}/v2.1 && openstack endpoint create --region RegionOne compute admin http://cfvip:{{ novaPort }}/v2.1;fi
   when: role == 'bootstrap'
 
+#    openstack-config --set /etc/nova/nova.conf DEFAULT transport_url rabbit://openstack:cf@controller:5672/,openstack:cf@pxc2:5672/,openstack:cf@pxc3:5672/ &&
 - name: Modify {{ novaName }} conf
   shell: >
     openstack-config --set /etc/nova/nova.conf DEFAULT enabled_apis osapi_compute,metadata &&
-    openstack-config --set /etc/nova/nova.conf DEFAULT transport_url rabbit://openstack:cf@controller:5672/,openstack:cf@pxc2:5672/,openstack:cf@pxc3:5672/ &&
+    openstack-config --set /etc/nova/nova.conf DEFAULT transport_url rabbit://openstack:cf@cfvip:5672/ &&
     openstack-config --set /etc/nova/nova.conf DEFAULT my_ip "{{ ansible_facts.ens34.ipv4.address }}" &&
     openstack-config --set /etc/nova/nova.conf DEFAULT use_neutron true &&
     openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver &&
     openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf api auth_strategy keystone &&
-    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf api_database connection mysql+pymysql://"{{ novaName }}":"{{ dbSpasswd }}"@cfvip:"{{ dbPort }}"/"{{ novaName }}"_api &&
-    openstack-config --set /etc/nova/nova.conf database connection mysql+pymysql://"{{ novaName }}":"{{ dbSpasswd }}"@cfvip:"{{ dbPort }}"/"{{ novaName }}" &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf api_database connection mysql+pymysql://"{{ novaName }}":"{{ dbSpasswd }}"@cfvip:3306/"{{ novaName }}"_api &&
+    openstack-config --set /etc/nova/nova.conf database connection mysql+pymysql://"{{ novaName }}":"{{ dbSpasswd }}"@cfvip:3306/"{{ novaName }}" &&
     openstack-config --set /etc/nova/nova.conf glance api_servers http://cfvip:9292 &&
     openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken www_authenticate_uri http://cfvip:5000/ &&
     openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken auth_url http://cfvip:5000/ &&

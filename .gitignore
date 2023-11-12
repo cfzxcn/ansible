@@ -4,3 +4,7 @@
 *.tar.bz2
 *.tar.gz
 *.tar.xz
+*.tar
+*.mp4
+#roles/k8sbinary/files/kubernetes/
+/roles/k8sbinary/files/*

@@ -41,11 +41,11 @@
     openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT core_plugin ml2 &&
     openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT service_plugins router &&
     openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT allow_overlapping_ips true &&
-    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT transport_url rabbit://openstack:cf@cfvip &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT transport_url rabbit://openstack:cf@cfvip:5672 &&
     openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT auth_strategy keystone &&
     openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT notify_nova_on_port_status_changes true &&
     openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT notify_nova_on_port_data_changes true &&
-    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf database connection mysql+pymysql://"{{ neutronName }}":"{{ dbSpasswd }}"@cfvip:"{{ dbPort }}"/"{{ neutronName }}" &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf database connection mysql+pymysql://"{{ neutronName }}":"{{ dbSpasswd }}"@cfvip:3306/"{{ neutronName }}" &&
     openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken www_authenticate_uri http://cfvip:5000 &&
     openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken auth_url http://cfvip:5000 &&
     openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken memcached_servers ha1:11211,ha2:11211,ha3:11211 &&

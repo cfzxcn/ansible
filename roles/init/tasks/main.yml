@@ -21,15 +21,15 @@
 #    key: "{{ lookup('file', '/home/andy/.ssh/id_rsa.pub') }}"
 #  ignore_errors: true
 - name: yum install sshpass
-  yum: name=sshpass
+  yum: name="git,sshpass,tree,wget,lrzsz,vim,gdisk,lsof,net-tools,bash-completion,mlocate,autofs,yum-utils"
 
 - name: Generate controller.st.cn's root's ssh-keygen
   shell: '[ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -q -N "" -f ~/.ssh/id_rsa'
-  when: ansible_fqdn=='controller.st.cn'
+#  when: ansible_fqdn=='controller.st.cn'
 
 - name: controller sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no {{ hostName }}
   shell: "for i in pxc2 pxc3 controller;do sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no $i;done"
-  when: ansible_fqdn == 'controller.st.cn'
+#  when: ansible_fqdn == 'controller.st.cn'
 
 - name: 关闭firewalld
   service: name=firewalld state=stopped enabled=no
@@ -76,10 +76,13 @@
 #
 #- name: Append 'server controller iburst' to /etc/chrony.conf
 ##  dest: /opt/k8s/init-master.sh
-#  lineinfile: path=/etc/chrony.conf insertbefore="# Use public servers(.*)" line='server controller iburst' backup=true
+#  lineinfile: path=/etc/chrony.conf insertbefore="# Use public servers(.*)" line='server ub20 iburst' backup=true
 #
 #- name: Restart chronyd service
 #  service: name=chronyd state=restarted
+
+- name: Remove dnsmasq
+  yum: name=dnsmasq state=absent
 
 - name: Stop postfix/avahi-daemon/rpcbind/cups
   service: 
@@ -94,13 +97,11 @@
     - 'cups.service'
     - 'cups.socket'
     - 'cups-browsed.service'
+#    - 'dnsmasq'
   ignore_errors: true
 
-- name: pkill dnsmasq
-  shell: "pkill dnsmasq"
-
-- name: Remove dnsmasq
-  yum: name=dnsmasq state=absent
+#- name: pkill dnsmasq
+#  shell: "pkill dnsmasq"
 
 - name: init 3
   shell: systemctl set-default multi-user.target && init 3
@@ -132,10 +133,27 @@
 #- name: Modity /etc/sysctl.conf 
 #  lineinfile: path=/etc/sysctl.conf line='net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1'
 
+- name: ulimt -SHn 65535
+  shell: "ulimt -SHn 65535"
+
+- name: Modity /etc/security/limits.conf
+  ansible.builtin.lineinfile:
+    path: /etc/security/limits.conf
+    line: '{{ item }}'
+    backup: yes
+  with_items:
+    - '* hard nofile 131072'
+    - '* soft nofile 655360'
+    - '* hard nproc 655350'
+    - '* soft nproc 655350'
+    - '* soft memlock unlimited'
+    - '* hard memlock unlimited'
+
 - name: Modity /etc/sysctl.conf
   ansible.builtin.lineinfile:
     path: /etc/sysctl.conf
     line: '{{ item }}'
+    backup: yes
   with_items:
     - 'net.ipv4.ip_forward = 1'
     - 'net.bridge.bridge-nf-call-iptables = 1'

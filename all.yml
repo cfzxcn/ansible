@@ -12,10 +12,10 @@
 #      tags: ["computeinit"]
 #- hosts: rabbitmq
 #- hosts: compute1
-- hosts: pxc
+#- hosts: pxc
 #- hosts: pcs
 #- hosts: ub
-#- hosts: ceph
+- hosts: ceph
 #  remote_user: andy
   gather_facts: true
   ignore_errors: true
@@ -77,6 +77,8 @@
       tags: ["nginx_compile"]
     - role: java
       tags: ["java"]
+    - role: k8sbinary
+      tags: ["k8sbinary"]
     - role: docker
       tags: ["docker"]
     - role: zabbix-agent

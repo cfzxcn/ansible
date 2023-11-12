@@ -5,4 +5,6 @@
 *.tar.gz
 *.tar.xz
 *.tar
-roles/k8sbinary/files/kubernetes/*
+*.mp4
+#roles/k8sbinary/files/kubernetes/
+/roles/k8sbinary/files/*

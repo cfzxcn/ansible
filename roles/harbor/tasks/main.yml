@@ -1,0 +1,32 @@
+#vars:
+#  - installDir: /opt/harbor
+
+- name: mkdir {{ installDir }}
+  file: path="{{ installDir }}" state=directory
+
+#- name: Copy harbor.v2.9.1.tar.gz to target host
+#  copy: src=harbor.v2.9.1.tar.gz dest="{{ installDir }}"
+
+- name: Generate harbor.yml.j2 / common.sh
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ installDir }}/{{ item }}"
+  loop:
+    - harbor.yml
+    - common.sh
+    
+- name: Generate prepare / install.sh
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ installDir }}/{{ item }}"
+    mode: +x
+  loop:
+    - install.sh
+    - prepare
+
+- name: excute install.sh at {{ ansible_hostname }}
+  ansible.builtin.script: "harbor.setup.sh"
+  args:
+    chdir: "{{ installDir }}"
+
+

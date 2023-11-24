@@ -1,0 +1,11 @@
+---
+- hosts: 192.168.1.63
+#  remote_user: andy
+  gather_facts: true
+  ignore_errors: true
+  vars_files:
+    - group_vars/main.yml
+
+  roles:
+    - role: harbor
+      tags: ["harbor"]

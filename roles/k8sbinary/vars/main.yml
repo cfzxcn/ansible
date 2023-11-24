@@ -12,3 +12,5 @@ kvip: 192.168.1.200
 httpskvip: https://192.168.1.200:8443
 # 这个192.168.1.200:8443是keepalivedp中自定义的vip
 #kubeApiserver: https://192.168.1.61:6443
+
+installDir: /opt/harbor

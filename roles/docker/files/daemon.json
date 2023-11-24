@@ -12,6 +12,7 @@
         "http://hub-mirror.c.163.com",
         "https://ung2thfc.mirror.aliyuncs.com"
     ],
+   "insecure-registries": ["c3.st.cn:10080"],
    "live-restore": true
 }
 

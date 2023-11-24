@@ -9,16 +9,27 @@
 - name: swapoff
   shell: "swapoff -a && sysctl -w vm.swappiness=0"
 
-- name: modprobe br_netfilter
-  shell: modprobe br_netfilter
-
-#############################################################################
+- name: Add vm.swappiness=0 to /etc/sysctl.d/k8s.conf
+  ansible.builtin.lineinfile:
+    path: /etc/sysctl.d/k8s.conf
+    line: '{{ item }}'
+  with_items:
+    - 'vm.swappiness=0'
 
 - name: yum install ipvsadm ipset sysstat conntrack libseccomp
   yum: name='ipvsadm,ipset,sysstat,conntrack,libseccomp'
 
 - name: Copy ipvs.conf to /etc/modules-load.d/ipvs.conf
   copy: src='../../k8sbinary/files/ipvs.conf' dest="/etc/modules-load.d/ipvs.conf"
+
+- name: modprobe br_netfilter;modprobe overlay
+  shell: "modprobe br_netfilter;modprobe overlay"
+
+- name: sysctl -p /etc/sysctl.d/k8s.conf
+  shell: sysctl -p /etc/sysctl.d/k8s.conf
+
+#############################################################################
+
 
 - name: Start systemd-modules-load.service and daemon-reload
   ansible.builtin.systemd:

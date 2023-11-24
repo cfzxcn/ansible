@@ -202,6 +202,9 @@
     - 'net.ipv6.conf.lo.disable_ipv6 = 0'
     - 'net.ipv6.conf.all.forwarding = 0'
 
+- name: modprobe br_netfilter;modprobe overlay
+  shell: "modprobe br_netfilter;modprobe overlay"
+
 - name: sysctl --system
   shell: sysctl --system
 #- name: yum install centos-release-openstack-train

@@ -24,5 +24,6 @@
 # 9
 #- include_tasks: flannel.yml
 
-- include_tasks: worker.yml
+#- include_tasks: worker.yml
 # 10、worker节点安装kubelet和kube-proxy
+

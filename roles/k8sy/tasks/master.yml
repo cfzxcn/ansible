@@ -1,0 +1,48 @@
+- name:
+  block:
+    - name: kubeadm init at {{ ansible_hostname }}
+      shell: "kubeadm init \
+      --apiserver-advertise-address={{ ansible_default_ipv4.address }} \
+      --image-repository registry.aliyuncs.com/google_containers \
+      --kubernetes-version v{{ kubeVer }} \
+      --service-cidr=10.96.0.0/12 \
+      --pod-network-cidr=10.244.0.0/16"
+  when: ansible_hostname == 'c6'
+
+- name: start and enable kubelet
+  service: name="kubelet.service" state=started enabled=yes
+
+- name: mkdir /root/.kube -p
+  file: path="/root/.kube" state=directory recurse=yes
+
+- name:
+  block:
+    - name: Copy {{ kuberPath }}/cfg/* to all nodes
+      shell: "for i in {{ allList }};do rsync -az /etc/kubernetes/admin.conf $i:/root/.kube/config;done"
+
+    - name: getHash at {{ ansible_hostname }}
+      shell: "openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'"
+      register: getHash
+
+    - name: getToken at {{ ansible_hostname }}
+#      shell: "kubeadm token create"
+      shell: kubeadm token list | awk 'NR==2{print $1}'
+      register: getToken
+      args:
+        executable: /bin/bash
+#    - name: Copy /etc/kubernetes/admin.conf to /root/.kube/config
+#      copy:
+#        owner: root
+#        group: root
+#        remote_src: yes
+#        src: "/etc/kubernetes/admin.conf"
+#        dest: /root/.kube/config
+  when: ansible_hostname == 'c6'
+
+###########################################################################
+
+- name: kubeadm join {{ ansible_hostname }}
+  shell: 'kubeadm join 192.168.1.66:6443 --token {{ getToken }} --discovery-token-ca-cert-hash sha256:{{ getHash }}'
+  when: ansible_hostname == 'c7' or ansible_hostname == 'c8'
+
+

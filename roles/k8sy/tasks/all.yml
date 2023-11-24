@@ -1,0 +1,114 @@
+- name: sed -ri '/^[^#]*swap/s@^@#@' /etc/fstab
+  lineinfile:
+    dest: /etc/fstab
+    regexp: "(^[^#]*)swap(.*0$)"
+    line: '#\1swap\2'
+    backrefs: yes
+    backup: yes
+
+- name: swapoff
+  shell: "swapoff -a && sysctl -w vm.swappiness=0"
+
+- name: modprobe br_netfilter
+  shell: modprobe br_netfilter
+
+#############################################################################
+
+- name: yum install ipvsadm ipset sysstat conntrack libseccomp
+  yum: name='ipvsadm,ipset,sysstat,conntrack,libseccomp'
+
+- name: Copy ipvs.conf to /etc/modules-load.d/ipvs.conf
+  copy: src='../../k8sbinary/files/ipvs.conf' dest="/etc/modules-load.d/ipvs.conf"
+
+- name: Start systemd-modules-load.service and daemon-reload
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "systemd-modules-load.service"
+
+- name: Remove docker older version
+  ansible.builtin.yum:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - docker
+    - docker-client
+    - docker-client-latest
+    - docker-common
+    - docker-latest
+    - docker-latest-logrotate
+    - docker-logrotate
+    - docker-engine
+
+- name: Generate /etc/yum.repos.d/docker-ce.repo
+  template: src=docker-ce.repo dest=/etc/yum.repos.d/docker-ce.repo
+
+#- name: Download docker-ce.repo from https://download.docker.com
+#  ansible.builtin.get_url:
+#    url: https://download.docker.com/linux/centos/docker-ce.repo
+#    dest: /etc/yum.repos.d/docker-ce.repo
+
+#- name: Replace docker.com to mirrors.cloud.tencent.com
+#  ansible.builtin.replace:
+#    path: /etc/yum.repos.d/docker-ce.repo
+#    regexp: 'download.docker.com'
+#    replace: 'mirrors.cloud.tencent.com/docker-ce'
+
+- name: Install docker
+  ansible.builtin.yum:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+    - 'docker-ce-{{ dockerVer }}'
+    - 'docker-ce-cli-{{ dockerVer }}'
+    - containerd.io
+    - docker-buildx-plugin
+    - docker-compose-plugin
+
+- name: mkdir /etc/docker -p
+  file: path="/etc/docker" state=directory recurse=yes
+
+- name: Copy accelerator daemon.json to /etc/docker/
+  copy: src="../../docker/files/daemon.json" dest=/etc/docker/daemon.json
+  notify: 'daemon-reload and restart docker'
+
+- name: Create the docker group
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: adding existing user andy to group docker
+  user:
+    name: andy
+    groups: docker
+    append: yes
+    
+- name: start and enable docker containerd
+  service: name="docker" state=started enabled=yes
+
+###########################################################################
+
+- name: Add k8s repo
+  yum_repository: 
+    name: k8s 
+    description: k8s from tencent.com
+    baseurl: "https://mirrors.cloud.tencent.com/kubernetes/yum/repos/kubernetes-el$releasever-$basearch"
+    gpgcheck: no
+
+- name: Install  kubeadm  kubelet  kubectl-{{ kubeVer }}
+  ansible.builtin.yum:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+    - 'kubelet-{{ kubeVer }}'
+    - 'kubeadm-{{ kubeVer }}'
+    - 'kubectl-{{ kubeVer }}'
+
+#- name: start and enable kubelet
+#  service: name="kubelet" state=started enabled=yes
+# 安装后先不要启动，否则日志报：Failed to load kubelet config file" err="failed to load Kubelet config file /var/lib/kubelet/config.yaml，等init后再启动
+#############################################################################
+

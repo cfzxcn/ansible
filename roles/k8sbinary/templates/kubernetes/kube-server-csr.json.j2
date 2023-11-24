@@ -1,31 +1,25 @@
+{% set cluster_address=[] %}
+{% for host in groups['ceph'] %}
+{% set ceph_ip = hostvars[host]['ansible_default_ipv4']['address'] %}
+{% set _ = cluster_address.append("{}".format(ceph_ip)) %}
+{% endfor %}
 {
     "CN": "kubernetes",
     "hosts": [
-      "30.0.0.1",
-      "127.0.0.1",
-      "192.168.1.61",
-      "192.168.1.62",
-      "192.168.1.63",
-      "192.168.1.64",
-      "192.168.1.65",
-      "192.168.1.66",
-      "192.168.1.67",
-      "192.168.1.68",
-      "192.168.1.69",
-      "192.168.1.81",
-      "192.168.1.82",
-      "192.168.1.83",
-      "192.168.1.84",
-      "192.168.1.85",
-      "192.168.1.86",
-      "192.168.1.87",
-      "192.168.1.88",
-      "192.168.1.89",
-      "kubernetes",
-      "kubernetes.default",
-      "kubernetes.default.svc",
-      "kubernetes.default.svc.cluster",
-      "kubernetes.default.svc.cluster.local"
+    "127.0.0.1",
+    "10.10.10.1",
+    "10.96.0.1",
+    "60.0.0.61",
+    "60.0.0.62",
+    "60.0.0.63",
+    "60.0.0.64",
+    "kubernetes",
+    "kubernetes.default",
+    "kubernetes.default.svc",
+    "kubernetes.default.svc.cluster",
+    "kubernetes.default.svc.cluster.local",
+    "{{ kvip }}",
+    "{{ cluster_address | join('",\n    "') }}"
     ],
     "key": {
         "algo": "rsa",
@@ -34,8 +28,8 @@
     "names": [
         {
             "C": "CN",
-            "L": "caofei",
-            "ST": "dt",
+            "ST": "Shanxi",
+            "L": "Datong",
             "O": "k8s",
             "OU": "System"
         }

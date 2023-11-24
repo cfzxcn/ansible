@@ -1,0 +1,85 @@
+- name:
+  block:
+    - name: kubectl config kube-controller-manager set-cluster kubernetes
+      shell: "kubectl config set-cluster kubernetes \
+     --certificate-authority={{ kuberPath }}/ssl/ca.pem \
+     --embed-certs=true \
+     --server={{ httpskvip }} \
+     --kubeconfig={{ kuberPath }}/cfg/kube-controller-manager.kubeconfig"
+
+    - name: kubectl config kube-controller-manager set-context
+      shell: "kubectl config set-context system:kube-controller-manager@kubernetes \
+    --cluster=kubernetes \
+    --user=system:kube-controller-manager \
+    --kubeconfig={{ kuberPath }}/cfg/kube-controller-manager.kubeconfig"
+
+    - name: kubectl config kube-controller-manager set-credentials 
+      shell: "kubectl config set-credentials system:kube-controller-manager \
+    --client-certificate={{ kuberPath }}/ssl/kube-controller-manager.pem \
+    --client-key={{ kuberPath }}/ssl/kube-controller-manager-key.pem \
+    --embed-certs=true \
+    --kubeconfig={{ kuberPath }}/cfg/kube-controller-manager.kubeconfig"
+
+    - name: kubectl config kube-controller-manager use-context
+      shell: "kubectl config use-context system:kube-controller-manager@kubernetes \
+      --kubeconfig={{ kuberPath }}/cfg/kube-controller-manager.kubeconfig"
+
+##################################################################
+
+    - name: kubectl config kube-scheduler set-cluster kubernetes
+      shell: "kubectl config set-cluster kubernetes \
+     --certificate-authority={{ kuberPath }}/ssl/ca.pem \
+     --embed-certs=true \
+     --server={{ httpskvip }} \
+     --kubeconfig={{ kuberPath }}/cfg/kube-scheduler.kubeconfig"
+
+    - name: kubectl config kube-scheduler set-credentials
+      shell: "kubectl config set-credentials system:kube-scheduler \
+    --client-certificate={{ kuberPath }}/ssl/kube-scheduler.pem \
+    --client-key={{ kuberPath }}/ssl/kube-scheduler-key.pem \
+    --embed-certs=true \
+    --kubeconfig={{ kuberPath }}/cfg/kube-scheduler.kubeconfig"
+
+    - name: kubectl config kube-scheduler set-context default
+      shell: "kubectl config set-context system:kube-scheduler@kubernetes \
+    --cluster=kubernetes \
+    --user=system:kube-scheduler \
+    --kubeconfig={{ kuberPath }}/cfg/kube-scheduler.kubeconfig"
+
+    - name: kubectl config kube-scheduler use-context
+      shell: "kubectl config use-context system:kube-scheduler@kubernetes \
+      --kubeconfig={{ kuberPath }}/cfg/kube-scheduler.kubeconfig"
+
+#################################################################
+
+    - name: kubectl config admin set-cluster kubernetes
+      shell: "kubectl config set-cluster kubernetes \
+      --certificate-authority={{ kuberPath }}/ssl/ca.pem \
+      --embed-certs=true \
+      --server={{ httpskvip }} \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+ 
+    - name: kubectl config set-credentials kubernetes-admin
+      shell: "kubectl config set-credentials kubernetes-admin \
+      --client-certificate={{ kuberPath }}/ssl/admin.pem \
+      --client-key={{ kuberPath }}/ssl/admin-key.pem \
+      --embed-certs=true \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+
+    - name: kubectl config set-context kubernetes-admin@kubernetes
+      shell: "kubectl config set-context kubernetes-admin@kubernetes \
+      --cluster=kubernetes \
+      --user=kubernetes-admin \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+
+    - name: kubectl config use-context kubernetes-admin@kubernetes
+      shell: "kubectl config use-context kubernetes-admin@kubernetes \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+
+##############################################################
+
+    - name: Copy {{ kuberPath }}/cfg/* to all nodes
+      shell: "for i in c2 c3;do rsync -az {{ kuberPath }}/cfg/*{admin,controller,scheduler}*.kubeconfig $i:{{ kuberPath }}/cfg;done"
+
+  when: ansible_hostname == 'c1'
+

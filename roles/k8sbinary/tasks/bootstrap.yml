@@ -1,0 +1,58 @@
+- name:
+  block:
+    - name: Generate {{ kuberPath }}/cfg/bootstrap.secret.yaml
+      template: src=kubernetes/bootstrap.secret.yaml.j2 dest={{ kuberPath }}/cfg/bootstrap.secret.yaml
+
+#########################################################################
+
+    - name: kubectl config bootstrap set-cluster kubernetes
+      shell: "kubectl config set-cluster kubernetes \
+      --certificate-authority={{ kuberPath }}/ssl/ca.pem \
+      --embed-certs=true \
+      --server={{ httpskvip }} \
+      --kubeconfig={{ kuberPath }}/cfg/bootstrap-kubelet.kubeconfig"
+
+    - name: kubectl config set-credentials kubelet-bootstrap
+      shell: "kubectl config set-credentials tls-bootstrap-token-user \
+#      --token=ba3942b6b563adba988518cbcf96b42d \
+      --token=c8ad9c.2e4d610cf3e7426e \
+      --kubeconfig={{ kuberPath }}/cfg/bootstrap-kubelet.kubeconfig"
+
+    - name: kubectl config set-context tls-bootstrap-token-user@kubernetes
+      shell: "kubectl config set-context tls-bootstrap-token-user@kubernetes \
+      --cluster=kubernetes \
+      --user=tls-bootstrap-token-user \
+      --kubeconfig={{ kuberPath }}/cfg/bootstrap-kubelet.kubeconfig"
+ 
+    - name: kubectl config use-context tls-bootstrap-token-user@kubernetes
+      shell: "kubectl config use-context tls-bootstrap-token-user@kubernetes \
+      --kubeconfig={{ kuberPath }}/cfg/bootstrap-kubelet.kubeconfig"
+
+#    - name: copy {{ ansible_hostname}} {{ kuberPath }}/cfg/admin.kubeconfig to /root/.kube/config
+#      copy:
+#        remote_src: yes
+#        src: "{{ kuberPath }}/cfg/admin.kubeconfig"
+#        dest: /root/.kube/config
+
+    - name: kubectl create -f {{ kuberPath }}/cfg/bootstrap.secret.yaml
+      shell: "kubectl create -f {{ kuberPath }}/cfg/bootstrap.secret.yaml"
+
+    - name: kubectl create clusterrolebinding tls-bootstrap-token-user --clusterrole=system:node-bootstrapper --user=tls-bootstrap-token-user
+      shell: "kubectl create clusterrolebinding tls-bootstrap-token-user \
+      --clusterrole=system:node-bootstrapper \
+      --user=tls-bootstrap-token-user"
+
+##############################################################
+
+  when: ansible_hostname == 'c1'
+
+- name: mkdir /root/.kube -p
+  file: path="/root/.kube" state=directory recurse=yes
+
+- name: Copy {{ kuberPath }}/cfg/* to all nodes
+  shell: "for i in {{ allList }};do rsync -az {{ kuberPath }}/cfg/admin.kubeconfig $i:/root/.kube/config;done"
+  when: ansible_hostname == 'c1'
+
+
+
+

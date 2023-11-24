@@ -1,15 +1,17 @@
 #[Member]
-ETCD_NAME="{{ ansible_hostname }}"
+#ETCD_NAME="{{ ansible_hostname }}"
+ETCD_NAME="{{ ansible_fqdn }}"
 ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
 ETCD_LISTEN_PEER_URLS="https://{{ ansible_default_ipv4.address }}:2380"
-ETCD_LISTEN_CLIENT_URLS="https://{{ ansible_default_ipv4.address }}:2379"
+ETCD_LISTEN_CLIENT_URLS="https://{{ ansible_default_ipv4.address }}:2379,http://127.0.0.1:2379"
+#ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
+#这样远端和本地都能访问，本地访问默认会用127.0.0.1访问，这样启动后，会监听两个地址，分别是：127.0.0.1：2380和:::2379
 
 #[Clustering]
 ETCD_INITIAL_ADVERTISE_PEER_URLS="https://{{ ansible_default_ipv4.address }}:2380"
 ETCD_ADVERTISE_CLIENT_URLS="https://{{ ansible_default_ipv4.address }}:2379"
-
-ETCD_INITIAL_CLUSTER="c1.st.cn=https://192.168.1.61:2380,c4.st.cn=https://192.168.1.64:2380"
+#如果配了集群，这是在集群中的ip地址
+ETCD_INITIAL_CLUSTER="c1.st.cn=https://192.168.1.61:2380,c2.st.cn=https://192.168.1.62:2380,c3.st.cn=https://192.168.1.63:2380"
 
 ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster"
 ETCD_INITIAL_CLUSTER_STATE="new"
-

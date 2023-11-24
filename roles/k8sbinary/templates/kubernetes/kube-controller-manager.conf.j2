@@ -1,14 +1,21 @@
-KUBE_CONTROLLER_MANAGER_OPTS="--logtostderr=false \
---v=2 \
---log-dir=/opt/kubernetes/logs \
+KUBE_CONTROLLER_MANAGER_OPTS="--logtostderr=true \
+--v=4 \
+--log-dir={{ kuberPath }}/logs \
 --leader-elect=true \
---kubeconfig=/opt/kubernetes/cfg/kube-controller-manager.kubeconfig \
---bind-address=127.0.0.1 \
---allocate-node-cidrs=true \
---cluster-cidr=10.244.0.0/16 \
---service-cluster-ip-range=10.0.0.0/24 \
---cluster-signing-cert-file=/opt/kubernetes/ssl/kube-ca.pem \
---cluster-signing-key-file=/opt/kubernetes/ssl/kube-ca-key.pem \
---root-ca-file=/opt/kubernetes/ssl/kube-ca.pem \
---service-account-private-key-file=/opt/kubernetes/ssl/kube-ca-key.pem \
+--kubeconfig={{ kuberPath }}/cfg/kube-controller-manager.kubeconfig \
+--address=127.0.0.1 \
+--service-cluster-ip-range=10.96.0.0/12 \
+--root-ca-file={{ kuberPath }}/ssl/ca.pem \
+--cluster-signing-cert-file={{ kuberPath }}/ssl/ca.pem \
+--cluster-signing-key-file={{ kuberPath }}/ssl/ca-key.pem \
+--service-account-private-key-file={{ kuberPath }}/ssl/ca-key.pem \
 --cluster-signing-duration=87600h0m0s"
+--use-service-account-credentials=true \
+--node-monitor-grace-period=40s \
+--node-monitor-period=5s \
+--pod-eviction-timeout=2m0s \
+--controllers=*,bootstrapsigner,tokencleaner \
+--allocate-node-cidrs=true \
+--cluster-cidr=172.16.0.0/12 \
+--requestheader-client-ca-file={{ kuberPath }}/ssl/front-proxy-ca.pem \
+--node-cidr-mask-size=24

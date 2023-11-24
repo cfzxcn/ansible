@@ -33,8 +33,12 @@
       tags: ["memcached"]
     - role: redis
       tags: ["redis"]
+    - role: keepalived-yum
+      tags: ["keepalived-yum"]
     - role: haproxy
       tags: ["haproxy"]
+    - role: haproxy-yum
+      tags: ["haproxy-yum"]
     - role: pcs
       tags: ["pcs"]
     - role: pxc
@@ -77,6 +81,8 @@
       tags: ["nginx_compile"]
     - role: java
       tags: ["java"]
+    - role: k8sy
+      tags: ["k8sy"]
     - role: k8sbinary
       tags: ["k8sbinary"]
     - role: docker

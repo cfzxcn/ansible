@@ -23,7 +23,7 @@
 30.0.0.33 compute3
 30.0.0.34 compute4
 
-# ceph
+# ceph and k8s and k8sy
 192.168.1.61 c1.st.cn c1 
 192.168.1.62 c2.st.cn c2
 192.168.1.63 c3.st.cn c3

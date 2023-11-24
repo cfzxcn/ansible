@@ -1,9 +1,19 @@
 [Unit]
 Description=Kubernetes Scheduler
 Documentation=https://github.com/kubernetes/kubernetes
+After=network.target
+
 [Service]
-EnvironmentFile=/opt/kubernetes/cfg/kube-scheduler.conf
-ExecStart=/opt/kubernetes/bin/kube-scheduler $KUBE_SCHEDULER_OPTS
-Restart=on-failure
+ExecStart={{ kuberPath }}/bin/kube-scheduler \
+      --v=2 \
+      --logtostderr=true \
+      --address=127.0.0.1 \
+      --leader-elect=true \
+      --kubeconfig={{ kuberPath }}/cfg/kube-scheduler.kubeconfig
+
+Restart=always
+RestartSec=10s
+
 [Install]
 WantedBy=multi-user.target
+

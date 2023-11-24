@@ -4,7 +4,7 @@
 
 # common begging
 systemdDir: /usr/lib/systemd/system
-ensX: ens34
+ensX: ens36
 #ensXip: 60.0.0.61
 localIp: 60.0.0.61
 cfVip: 192.168.1.100

@@ -1,0 +1,102 @@
+- name: mkdir multi path for kubulet
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+  loop:
+    - /etc/systemd/system/kubelet.service.d
+    - /etc/cni/net.d
+    - /var/lib/kubelet
+    - /etc/kubernetes/manifests
+
+- name: Generate kubelet and kube-proxy service and conf
+  template:
+    src: "kubernetes/{{ item.cfsrc }}.j2"
+    dest: "{{ item.cfdest }}"
+  loop:
+    - { cfsrc: 'kubelet.service', cfdest: '/usr/lib/systemd/system/kubelet.service' }
+    - { cfsrc: 'kube-proxy.service', cfdest: '/usr/lib/systemd/system/kube-proxy.service' }
+    - { cfsrc: '10-kubelet.conf', cfdest: '/etc/systemd/system/kubelet.service.d/10-kubelet.conf' }
+    - { cfsrc: 'kubelet-conf.yml', cfdest: '/opt/kubernetes/cfg/kubelet-conf.yml' }
+    - { cfsrc: 'kube-proxy.yaml', cfdest: '/opt/kubernetes/cfg/kube-proxy.yaml' }
+#  notify: restart etcd
+
+- name:
+  block:
+    - name: kubelet Copy {{ kuberPath }}/ssl/pem to all worker nodes
+      shell: "for i in c4;do rsync -az {{ kuberPath }}/ssl/{ca,etcd-ca,server,server-key,ca-key,front-proxy-ca}.pem $i:{{ kuberPath }}/ssl;done"
+
+    - name: kubelet Copy {{ kuberPath }}/cfg/bootstrap-kubelet.kubeconfig to all nodes
+      shell: "for i in c2 c3 c4;do rsync -az {{ kuberPath }}/cfg/bootstrap-kubelet.kubeconfig $i:{{ kuberPath }}/cfg;done"
+  when: ansible_hostname == 'c1'
+
+- name:
+  block:
+    - name: Copy kubelet and kube-proxy to all worker nodes
+      copy:
+        src: "kubernetes/server/bin/{{ item.src }}"
+        dest: "{{ kuberPath }}/{{ item.dest }}"
+        mode: +x
+      loop:
+        - { src: 'kubelet', dest: 'bin' }
+        - { src: 'kube-proxy', dest: 'bin' }
+    
+  when: ansible_hostname == 'c4'
+
+################################################################
+
+- name:
+  block:
+    - name: kubectl -n kube-system create serviceaccount kube-proxy
+      shell: kubectl -n kube-system create serviceaccount kube-proxy
+
+    - name: kubectl create clusterrolebinding system:kube-proxy --clusterrole system:node-proxier --serviceaccount kube-system:kube-proxy
+      shell: kubectl create clusterrolebinding system:kube-proxy --clusterrole system:node-proxier --serviceaccount kube-system:kube-proxy
+
+    - name: kubectl config kube-proxy set-cluster kubernetes
+      shell: "kubectl config set-cluster kubernetes \
+     --certificate-authority={{ kuberPath }}/ssl/ca.pem \
+     --embed-certs=true \
+     --server={{ httpskvip }} \
+     --kubeconfig={{ kuberPath }}/cfg/kube-proxy.kubeconfig"
+
+    - name: kubectl config set-credentials kube-proxy
+      shell: "SECRET=$(kubectl -n kube-system get sa/kube-proxy \
+    --output=jsonpath='{.secrets[0].name}') && \
+    JWT_TOKEN=$(kubectl -n kube-system get secret/$SECRET \
+    --output=jsonpath='{.data.token}' | base64 -d) && \
+    kubectl config set-credentials kubernetes \
+    --token=${JWT_TOKEN} \
+    --kubeconfig={{ kuberPath }}/cfg/kube-proxy.kubeconfig"
+
+    - name: kubectl config kube-proxy set-context default
+      shell: "kubectl config set-context kubernetes \
+    --cluster=kubernetes \
+    --user=kubernetes \
+    --kubeconfig={{ kuberPath }}/cfg/kube-proxy.kubeconfig"
+
+    - name: kubectl config kube-proxy use-context default
+      shell: "kubectl config use-context kubernetes \
+      --kubeconfig={{ kuberPath }}/cfg/kube-proxy.kubeconfig"
+
+    - name: Copy {{ kuberPath }}/cfg/* to all nodes
+      shell: "for i in c2 c3 c4;do rsync -az {{ kuberPath }}/cfg/kube-proxy.kubeconfig $i:{{ kuberPath }}/cfg;done"
+
+  when: ansible_hostname == 'c1'
+
+#################################################################
+
+- name: Start kubelet and daemon-reload
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "kubelet.service"
+
+- name: Start kube-proxy and daemon-reload
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "kube-proxy.service"
+

@@ -1,0 +1,3 @@
+FLANNEL_OPTIONS="--etcd-endpoints={{ etcdAddrS }} -etcd-cafile={{ kuberPath }}/ssl/ca.pem -etcd-certfile={{ kuberPath }}/ssl/server.pem -etcd-keyfile={{ kuberPath }}/ssl/server-key.pem"
+#ETCD_ENDPOINTS=${1:-"http://192.168.1.61:2379"}
+#FLANNEL_OPTIONS="--etcd-endpoints=${ETCD_ENDPOINTS}"

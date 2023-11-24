@@ -1,21 +1,16 @@
 [Unit]
 Description=Etcd Server
+Documentation=https://coreos.com/etcd/docs/latest/
 After=network.target
-After=network-online.target
-Wants=network-online.target
+#After=network-online.target
+#Wants=network-online.target
 
 [Service]
 Type=notify
-EnvironmentFile=/opt/etcd/cfg/etcd.conf
-ExecStart=/opt/etcd/bin/etcd \
---cert-file=/opt/etcd/ssl/etcd-server.pem \
---key-file=/opt/etcd/ssl/etcd-server-key.pem \
---peer-cert-file=/opt/etcd/ssl/etcd-server.pem \
---peer-key-file=/opt/etcd/ssl/etcd-server-key.pem \
---trusted-ca-file=/opt/etcd/ssl/etcd-ca.pem \
---peer-trusted-ca-file=/opt/etcd/ssl/etcd-ca.pem \
---logger=zap
+#EnvironmentFile=-{{ kuberPath }}/cfg/etcd.conf
+ExecStart={{ kuberPath }}/bin/etcd --config-file={{ kuberPath }}/cfg/etcd.config.yml
 Restart=on-failure
+RestartSec=10
 LimitNOFILE=65536
 
 [Install]

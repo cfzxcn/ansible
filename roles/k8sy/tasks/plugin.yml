@@ -1,0 +1,31 @@
+- name: mkdir /opt/k8s -p
+  file: path="/opt/k8s" state=directory recurse=yes
+
+- name:
+  block:
+    - name: Generate calico.yaml  metrics.yaml  dashboard.yaml
+      template:
+        src: "{{ item.src }}.yaml.j2"
+        dest: "/opt/k8s/{{ item.dest }}.yaml"
+      loop:
+        - { src: calico.3.26.1, dest: calico }
+        - { src: dashboard.2.7.0, dest: dashboard }
+        - { src: metrics.0.6.4, dest: metrics }
+        - { src: admin, dest: admin }
+        
+    - name: kubectl apply -f /opt/k8s/calico.yml
+      shell: "kubectl apply -f /opt/k8s/calico.yml"
+
+    - name: kubectl apply -f /opt/k8s/metrics.yaml
+      shell: "kubectl apply -f /opt/k8s/metrics.yaml"
+
+    - name: kubectl apply -f /opt/k8s/dashboard.yaml
+      shell: "kubectl apply -f /opt/k8s/dashboard.yaml"
+
+    - name: kubectl create -f /opt/k8s/admin.yaml
+      shell: "kubectl create -f /opt/k8s/admin.yaml"
+
+    - name: kubectl apply -f https://addons.kuboard.cn/kuboard/kuboard-v3-swr.yaml
+      shell: "kubectl apply -f https://addons.kuboard.cn/kuboard/kuboard-v3-swr.yaml"
+
+  when: ansible_hostname == 'c6'

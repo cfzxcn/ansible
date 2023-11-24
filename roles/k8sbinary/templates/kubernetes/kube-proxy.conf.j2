@@ -1,0 +1,6 @@
+KUBE_PROXY_OPTS="--logtostderr=true \
+--v=4 \
+--log-dir=/var/log/kubernetes \
+--hostname-override={{ ansible_default_ipv4.address }} \
+--kubeconfig={{ kuberPath }}/cfg/kube-proxy.kubeconfig
+

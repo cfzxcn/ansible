@@ -1,9 +1,17 @@
 {
+   "exec-opts": ["native.cgroupdriver=systemd"],
+   "log-driver": "json-file",
+   "log-opts": {
+    "max-size": "100m"
+     },
+   "storage-driver": "overlay2",
    "registry-mirrors": [
-	"https://docker.mirrors.ustc.edu.cn/",
-	"https://yxndfegy.mirror.aliyuncs.com",
-	"https://registry.docker-cn.com",
-	"http://hub-mirror.c.163.com",
-	"https://ung2thfc.mirror.aliyuncs.com"
-    ]
+        "https://docker.mirrors.ustc.edu.cn/",
+        "https://yxndfegy.mirror.aliyuncs.com",
+        "https://registry.docker-cn.com",
+        "http://hub-mirror.c.163.com",
+        "https://ung2thfc.mirror.aliyuncs.com"
+    ],
+   "live-restore": true
 }
+

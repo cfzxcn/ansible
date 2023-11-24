@@ -1,11 +1,19 @@
 {% set cluster_address=[] %}
-{% for host in groups['ceph'] %}
+{% for host in groups['k8masters'] %}
 {% set ceph_ip = hostvars[host]['ansible_default_ipv4']['address'] %}
 {% set _ = cluster_address.append("{}".format(ceph_ip)) %}
 {% endfor %}
 {
     "CN": "etcd",
     "hosts": [
+    "127.0.0.1",
+    "10.10.10.1",
+    "10.0.0.1",
+    "10.96.0.1",
+    "60.0.0.61",
+    "60.0.0.62",
+    "60.0.0.63",
+    "{{ kvip }}",
     "{{ cluster_address | join('",\n    "') }}"
     ],
     "key": {
@@ -17,8 +25,8 @@
             "C": "CN",
             "ST": "Shanxi",
             "L": "Datong",
-            "O": "k8s",
-            "OU": "system"
+            "O": "etcd",
+            "OU": "Etcd Security"
         }
     ]
 }

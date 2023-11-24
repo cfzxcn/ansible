@@ -1,0 +1,21 @@
+- name: yum install keepalived
+  yum: name=keepalived
+
+- name: Copy keepalived.conf to /etc/keepalived/keepalived.conf
+  template: 
+    src: "{{ item }}.j2"
+    dest: "/etc/keepalived/{{ item }}"
+    backup: yes
+  loop:
+    - keepalived.conf
+  notify: restart keepalived
+
+- name: Copy check_apiserver.sh to /etc/keepalived/check_apiserver.sh
+  template: 
+    src: check_apiserver.sh.j2
+    dest: /etc/keepalived/check_apiserver.sh
+    mode: +x
+
+- name: systemctl enable --now keepalived 
+  service: name=keepalived state=restarted enabled=yes
+

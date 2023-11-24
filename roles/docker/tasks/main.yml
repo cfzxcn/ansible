@@ -55,9 +55,6 @@
   copy: src=daemon.json dest=/etc/docker/daemon.json
   notify: 'daemon-reload and restart docker'
 
-- name: start and enable docker containerd
-  service: name="docker" state=started enabled=yes
-
 - name: Create the docker group
   ansible.builtin.group:
     name: docker
@@ -68,6 +65,9 @@
     name: andy
     groups: docker
     append: yes
+
+- name: start and enable docker containerd
+  service: name="docker" state=started enabled=yes
 
 - name: 查看状态
   shell: docker info

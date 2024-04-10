@@ -1,0 +1,122 @@
+- name:
+  block:
+    - name: Generate ca-config.json  ca-csr.json  server-csr.json
+      template:
+        src: "{{ item }}.j2"
+        dest: "{{ kuberPath }}/ssl/{{ item }}"
+      loop:
+        - ca-csr.json
+        - ca-config.json
+        - server-csr.json
+
+#####################################################################
+
+    - name: cfssl gencert -initca ca-csr.json | cfssljson -bare etcd-ca
+      shell: "cfssl gencert -initca ca-csr.json | cfssljson -bare etcd-ca"
+      args:
+        chdir: "{{ kuberPath }}/ssl"
+
+    - name: cfssl gencert -ca=etcd-ca.pem -ca-key=etcd-ca-key.pem -config=ca-config.json -hostname={{ etcdAddr }} -profile=kubernetes server-csr.json | cfssljson -bare server
+      shell: "cfssl gencert -ca=etcd-ca.pem -ca-key=etcd-ca-key.pem -config=ca-config.json -profile=www server-csr.json | cfssljson -bare server"
+#      shell: "cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname={{ etcdAddr }} -profile=kubernetes server-csr.json | cfssljson -bare etcd"
+      args:
+        chdir: "{{ kuberPath }}/ssl"
+#
+#####################################################################
+##    - name: Copy {{ kuberPath }}/ssl/* to all nodes
+##      shell: "for i in {{ masterList }};do rsync -az {{ kuberPath }}/ssl/{etcd,server}*.pem $i:{{ kuberPath }}/ssl;done"
+## 以上生成的pem文件copy到所有节点      
+######################################################################
+
+    - name: Generate ca-config.json  ca-csr.json  server-csr.json
+      template:
+        src: "kubernetes/{{ item }}.j2"
+        dest: "{{ kuberPath }}/ssl/{{ item }}"
+      loop:
+        - kube-ca-csr.json
+        - kube-ca-config.json
+        - kube-apiserver-csr.json
+        - front-proxy-ca-csr.json
+        - front-proxy-client-csr.json
+        - kube-controller-manager-csr.json
+        - kube-scheduler-csr.json
+        - admin-csr.json
+#        - kube-proxy-csr.json
+#        - bootstrap.secret.yaml
+
+########################################################################
+
+    - name: cfssl gencert -initca kube-ca-csr.json | cfssljson -bare ca
+      shell: "cfssl gencert -initca kube-ca-csr.json | cfssljson -bare ca"
+      args:
+        chdir: "{{ kuberPath }}/ssl"
+
+    - name: cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=kube-ca-config.json -hostname={{ kubeAddr }} -profile=kubernetes kube-apiserver-csr.json | cfssljson -bare kube-apiserver
+      shell: "cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=kube-ca-config.json -profile=kubernetes kube-apiserver-csr.json | cfssljson -bare kube-apiserver"
+#      shell: "cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname={{ kubeAddr }} -profile=kubernetes kube-apiserver-csr.json | cfssljson -bare apiserver"
+      args:
+        chdir: "{{ kuberPath }}/ssl"
+
+#########################################################################
+
+    - name: cfssl gencert -initca front-proxy-ca-csr.json | cfssljson -bare front-proxy-ca
+      shell: "cfssl gencert -initca front-proxy-ca-csr.json | cfssljson -bare front-proxy-ca"
+      args:
+        chdir: "{{ kuberPath }}/ssl"
+
+    - name: cfssl gencert -ca=front-proxy-ca.pem -ca-key=front-proxy-ca-key.pem -config=ca-config.json -profile=kubernetes front-proxy-client-csr.json | cfssljson -bare front-proxy-client
+      shell: "cfssl gencert -ca=front-proxy-ca.pem -ca-key=front-proxy-ca-key.pem -config=kube-ca-config.json -profile=kubernetes front-proxy-client-csr.json | cfssljson -bare front-proxy-client"
+      args:
+        chdir: "{{ kuberPath }}/ssl"
+
+#########################################################################
+
+    - name: cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes kube-controller-manager-csr.json | cfssljson -bare kube-controller-manager
+      shell: "cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=kube-ca-config.json -profile=kubernetes kube-controller-manager-csr.json | cfssljson -bare kube-controller-manager"
+      args:
+        chdir: "{{ kuberPath }}/ssl"
+
+    - name: cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes kube-scheduler-csr.json | cfssljson -bare kube-scheduler
+      shell: "cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=kube-ca-config.json -profile=kubernetes kube-scheduler-csr.json | cfssljson -bare kube-scheduler"
+      args:
+        chdir: "{{ kuberPath }}/ssl"
+
+##########################################################################
+
+    - name: cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes admin-csr.json | cfssljson -bare admin
+      shell: "cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=kube-ca-config.json -profile=kubernetes admin-csr.json | cfssljson -bare admin"
+      args:
+        chdir: "{{ kuberPath }}/ssl"
+
+#########################################################################
+
+    - name: openssl genrsa -out {{ kuberPath }}/ssl/sa.key 2048
+      shell: openssl genrsa -out {{ kuberPath }}/ssl/sa.key 2048
+# 创建ServiceAccount Key
+    - name: openssl rsa -in {{ kuberPath }}/ssl/sa.key -pubout -out {{ kuberPath }}/ssl/sa.pub
+      shell: openssl rsa -in {{ kuberPath }}/ssl/sa.key -pubout -out {{ kuberPath }}/ssl/sa.pub
+
+#########################################################################
+
+    - name: Copy {{ kuberPath }}/ssl/{*pem,*csr,sa.key,sa.pub} to all master nodes
+      shell: "for NODE in c2 c3; do for FILE in $(ls /opt/kubernetes/ssl | grep -v 'json$'); do rsync -az {{ kuberPath }}/ssl/${FILE} $NODE:{{ kuberPath }}/ssl;done;done"
+#      shell: "for i in {{ masterList }};do rsync -az {{ kuberPath }}/ssl/*{apiserver,controller,scheduler,admin,ca,front}*.pem $i:{{ kuberPath }}/ssl;done"
+# 以上生成的三对kube*.pem文件copy到所有master节点
+
+#########################################################################
+#    - name: cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes kube-proxy-csr.json | cfssljson -bare kube-proxy
+#      shell: "cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes kube-proxy-csr.json | cfssljson -bare kube-proxy"
+##      shell: "cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname={{ kubeAddr }} -profile=kubernetes kube-proxy-csr.json | cfssljson -bare kube-proxy"
+#      args:
+#        chdir: "{{ kuberPath }}/ssl"
+#
+#    - name: Copy {{ kuberPath }}/ssl/* to all nodes
+##      shell: "for i in {{ workerList }};do rsync -az {{ kuberPath }}/ssl/kube-proxy*.pem $i:{{ kuberPath }}/ssl;done"
+#      shell: "for i in {{ allList }};do rsync -az {{ kuberPath }}/ssl/*.pem $i:{{ kuberPath }}/ssl;done"
+## 以上生成的一对kube-proxy.pem文件copy到所有worker节点
+
+  when: ansible_hostname == 'c1'
+
+
+
+

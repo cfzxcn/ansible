@@ -1,0 +1,15 @@
+#- include_tasks: completion.yml
+- name: Generate /etc/yum.repos.d/mongodb.repo
+  template: src=mongodb.repo.j2 dest=/etc/yum.repos.d/mongodb.repo
+
+- name: yum install mongodb-org
+  yum: name='mongodb-org' update_cache=yes
+
+- name: Restart mongod.service
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "mongod.service"
+  
+

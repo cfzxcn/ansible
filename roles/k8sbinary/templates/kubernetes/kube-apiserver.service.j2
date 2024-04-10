@@ -1,0 +1,55 @@
+[Unit]
+Description=Kubernetes API Server
+Documentation=https://github.com/kubernetes/kubernetes
+#After=network.target
+After=etcd.service
+Wants=etcd.service
+
+[Service]
+#EnvironmentFile=-{{ kuberPath }}/cfg/kube-apiserver.conf
+#ExecStart={{ kuberPath }}/bin/kube-apiserver $KUBE_APISERVER_OPTS
+ExecStart={{ kuberPath }}/bin/kube-apiserver \
+  --v=2 \
+  --logtostderr=true \
+  --allow-privileged=true \
+  --bind-address=0.0.0.0 \
+  --secure-port=6443 \
+  --insecure-port=0 \
+  --advertise-address={{ ansible_default_ipv4.address }} \
+  --service-cluster-ip-range={{ serviceIPRange }} \
+  --feature-gates=IPv6DualStack=true \
+  --service-node-port-range=30000-32767 \
+  --etcd-servers={{ etcdAddrS }} \
+  --etcd-cafile={{ kuberPath }}/ssl/etcd-ca.pem \
+  --etcd-certfile={{ kuberPath }}/ssl/etcd.pem \
+  --etcd-keyfile={{ kuberPath }}/ssl/etcd-key.pem \
+  --client-ca-file={{ kuberPath }}/ssl/ca.pem \
+  --tls-cert-file={{ kuberPath }}/ssl/apiserver.pem \
+  --tls-private-key-file={{ kuberPath }}/ssl/apiserver-key.pem \
+  --kubelet-client-certificate={{ kuberPath }}/ssl/apiserver.pem \
+  --kubelet-client-key={{ kuberPath }}/ssl/apiserver-key.pem \
+  --service-account-key-file={{ kuberPath }}/ssl/sa.pub \
+  --service-account-signing-key-file={{ kuberPath }}/ssl/sa.key \
+  --service-account-issuer=https://kubernetes.default.svc.cluster.local \
+  --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname  \
+  --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,NodeRestriction,ResourceQuota  \
+  --authorization-mode=Node,RBAC  \
+  --enable-bootstrap-token-auth=true  \
+  --requestheader-client-ca-file={{ kuberPath }}/ssl/front-proxy-ca.pem \
+  --proxy-client-cert-file={{ kuberPath }}/ssl/front-proxy-client.pem \
+  --proxy-client-key-file={{ kuberPath }}/ssl/front-proxy-client-key.pem \
+  --requestheader-allowed-names=aggregator  \
+  --requestheader-group-headers=X-Remote-Group  \
+  --requestheader-extra-headers-prefix=X-Remote-Extra-  \
+  --requestheader-username-headers=X-Remote-User \
+  --enable-aggregator-routing=true
+  --token-auth-file={{ kuberPath }}/ssl/token.csv
+
+Restart=on-failure
+RestartSec=10s
+Type=notify
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+

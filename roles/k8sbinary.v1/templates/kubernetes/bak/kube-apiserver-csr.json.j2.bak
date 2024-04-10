@@ -1,0 +1,22 @@
+{% set cluster_address=[] %}
+{% for host in groups['ceph'] %}
+{% set ceph_ip = hostvars[host]['ansible_default_ipv4']['address'] %}
+{% set _ = cluster_address.append("{}".format(ceph_ip)) %}
+{% endfor %}
+{
+    "CN": "kubernetes",
+    "hosts": [
+    "{{ cluster_address | join('",\n    "') }}"
+    ],
+    "key": {
+        "algo": "rsa",
+        "size": 2048
+    },
+    "names": [
+        {
+            "C": "CN",
+            "L": "caofei",
+            "ST": "dt"
+        }
+    ]
+}

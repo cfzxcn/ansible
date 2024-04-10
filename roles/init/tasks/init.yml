@@ -1,0 +1,252 @@
+#- name: Append "export LC_ALL=C" to /etc/profile.d/prompt.sh
+#  lineinfile: path=/etc/profile.d/prompt.sh line='export LC_ALL=C'
+##不加上下两项，ssh 192.168.1.61时，会报：perl: warning: Setting locale failed.
+#- name: source /etc/profile.d/prompt.sh
+#  shell: source /etc/profile.d/prompt.sh
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ hostName }}"
+    use: systemd
+
+- name: Generate /etc/hosts
+  copy: src="/root/playbook/roles/init/files/hosts" dest=/etc/hosts backup=yes
+
+- name: Generate 'prompt.sh.j2' to /etc/profile.d/prompt.sh
+  template:
+    src: "{{ item.src }}.j2"
+    dest: "{{ item.dest }}"
+#    owner: mysql
+#    group: mysql
+#    mode: 0600
+  loop:
+    - { src: '../../init/templates/prompt.sh', dest: '/etc/profile.d/prompt.sh' }
+# 之所以要写成../../init/files/prompt.sh，是因为其它角色调用时，会在那个角色的files下找这个文件，肯定找不到，所以这么写
+
+- name: Source /etc/profile.d/prompt.sh
+  shell: "source /etc/profile.d/prompt.sh"
+  args:
+    executable: /bin/bash
+
+#- name: Download 'CentOS-Base.repo' from https://mirrors.cloud.tencent.com/repo/centos{{ ansible_distribution_major_version }}_base.repo
+#  ansible.builtin.get_url:
+#    url: "https://mirrors.cloud.tencent.com/repo/centos{{ ansible_distribution_major_version }}_base.repo"
+#    dest: /etc/yum.repos.d/CentOS-Base.repo
+#
+#- name: 添加EPEL仓库
+#  copy: src="../../php/files/epel.repo" dest=/etc/yum.repos.d/epel.repo
+
+- name: yum install git,sshpass,tree,wget,lrzsz,vim,gdisk,lsof,net-tools,bash-completion,mlocate,autofs,yum-utils rsync
+#  yum: name="git,sshpass,tree,wget,lrzsz,vim,gdisk,lsof,tcpdump,net-tools,bash-completion,mlocate,autofs,yum-utils,bind-utils,rsync"
+  yum: name="git,sshpass,tree,wget,lrzsz,vim,gdisk,lsof,tcpdump,net-tools,bash-completion,mlocate,autofs,bind-utils,rsync"
+# bind-utils包可提供dig命令；安装yum-utils在kylin v10上报：No package yum-utils available，导致整条安装语句的所有包都不能安装
+- name: Generate all nodes's ssh-keygen
+  shell: '[ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -q -N "" -f ~/.ssh/id_rsa'
+
+- name: sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no {{ hostName }}
+  shell: "for i in ub;do sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no $i;done"
+#  when: ansible_fqdn == 'controller.st.cn'
+
+#- name: deliver root authorized_keys
+#  authorized_key:
+#    user: root
+#    key: "{{ lookup('file', '/root/.ssh/id_rsa.pub') }}"
+#    state: present
+
+- name: Create Normal User andy
+  user: name=andy password={{'cf' | password_hash('sha512')}} state=present 
+
+- name: Append andy to /etc/sudoers
+  lineinfile: path=/etc/sudoers line='andy ALL=(ALL) NOPASSWD:ALL' backup=true
+
+#- name: deliver andy authorized_keys
+#  authorized_key:
+#    user: andy
+#    key: "{{ lookup('file', '/home/andy/.ssh/id_rsa.pub') }}"
+- name: 关闭firewalld
+  service: name=firewalld state=stopped enabled=no
+
+- name: iptables -F
+  shell: iptables -F
+
+#- name: 永久关闭 selinux
+#  lineinfile:
+#    dest: /etc/selinux/config
+#    regexp: "^SELINUX="
+#    line: "SELINUX=disabled"
+- name: Disable SELinux
+  ansible.posix.selinux:
+    state: disabled
+  register: selinux_status
+
+- name: 临时关闭 selinux
+  command: "/sbin/setenforce 0"
+#  shell: "setenforce 0"
+#  failed_when: false
+  when: selinux_status.state != "disabled"
+
+#- name: 注释/etc/chrony.conf中所有以server开头的行
+#  replace:
+#    path: /etc/chrony.conf
+##    dest: /etc/chrony.conf
+#    regexp: "^server"
+#    replace: "#server"
+#
+#- name: 注释/etc/chrony.conf中所有以allow开头的行
+#  replace:
+#    path: /etc/chrony.conf
+#    regexp: "^allow"
+#    replace: "#allow"
+#
+#- name: Append 'server ub iburst' to /etc/chrony.conf
+#  lineinfile: path=/etc/chrony.conf insertbefore="# Use public servers(.*)" line='server ub iburst' backup=true
+#
+#- name: Restart chronyd service
+#  service: name=chronyd state=restarted
+
+- name: Remove dnsmasq
+  yum: name=dnsmasq state=absent
+
+- name: Stop postfix/avahi-daemon/rpcbind/cups
+  service: 
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  with_items: 
+    - 'postfix.service'
+    - 'rpcbind'
+    - 'avahi-daemon'
+    - 'cups.path'
+    - 'cups.service'
+    - 'cups.socket'
+    - 'cups-browsed.service'
+    - 'dnsmasq'
+  ignore_errors: true
+
+- name: pkill dnsmasq
+  shell: "pkill dnsmasq"
+
+- name: init 3
+  shell: systemctl set-default multi-user.target && init 3
+
+- name: Config ifcfg-{{ ensX }}
+  shell:
+    removes: "/etc/sysconfig/network-scripts/ifcfg-{{ ensX }}"
+# removes:如果文件不存在，不会执行后面的命令
+    cmd: |
+      echo -e "\n" > /etc/sysconfig/network-scripts/ifcfg-{{ ensX }}
+      cat > /etc/sysconfig/network-scripts/ifcfg-{{ ensX }} <<EOF
+      TYPE=Ethernet
+      BOOTPROTO=none
+      NAME={{ ensX }}
+      DEVICE={{ ensX }}
+      ONBOOT=yes
+      IPADDR={{ ensXip }}
+      PREFIX=24
+      EOF
+
+#- name: ifdown {{ ensX }};ifup {{ ensX }}
+#  shell: "if [ -f /etc/sysconfig/network-scripts/ifcfg-{{ ensX }} ];then ifdown {{ ensX }};ifup {{ ensX }};fi"
+- name: Restart network service for interface {{ ensX }}
+  ansible.builtin.service:
+    name: network
+    state: restarted
+    args: "{{ ensX }}"
+
+- name: Modity /etc/security/limits.conf
+  ansible.builtin.lineinfile:
+    path: /etc/security/limits.conf
+    line: '{{ item }}'
+    backup: yes
+  with_items:
+    - '* hard nofile 65536'
+    - '* soft nofile 65536'
+    - '* hard nproc 131072'
+    - '* soft nproc 131072'
+    - '* soft memlock unlimited'
+    - '* hard memlock unlimited'
+
+- name: ulimit -SHn 65535
+  shell: "ulimit -SHn 65535"
+
+#- name: Modity /etc/sysctl.conf 
+#  lineinfile: path=/etc/sysctl.conf line='net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1'
+- name: Modity /etc/sysctl.conf
+  ansible.builtin.lineinfile:
+    path: /etc/sysctl.conf
+    line: '{{ item }}'
+    backup: yes
+  with_items:
+    - 'net.ipv4.ip_forward = 1'
+    - 'net.bridge.bridge-nf-call-iptables = 1'
+    - 'net.bridge.bridge-nf-call-ip6tables = 1'
+    - 'net.ipv4.ip_nonlocal_bind = 1'
+    - 'net.ipv4.conf.all.rp_filter = 0'
+    - 'net.ipv4.conf.default.rp_filter = 0'
+    - '## default 1'
+    - 'net.ipv4.tcp_syncookies = 1'
+    - '## default 0'
+    - 'net.ipv4.tcp_tw_reuse = 1'
+    - '## default 0'
+    - 'net.ipv4.tcp_tw_recycle = 1'
+    - '## default 60'
+    - 'net.ipv4.tcp_fin_timeout = 30'
+    - '## default 256'
+    - 'net.ipv4.tcp_max_syn_backlog = 4096'
+    - '## default 32768 60999'
+    - 'net.ipv4.ip_local_port_range = 1024 65535'
+    - '## default 129=8'
+    - 'net.core.somaxconn = 16384'
+
+- name: touch /etc/sysctl.d/k8s.conf
+  file: name="/etc/sysctl.d/k8s.conf" state=touch
+
+- name: Modify /etc/sysctl.d/k8s.conf
+  ansible.builtin.lineinfile:
+    path: /etc/sysctl.d/k8s.conf
+    line: '{{ item }}'
+  with_items:
+    - 'fs.may_detach_mounts = 1'
+    - 'net.ipv4.conf.all.route_localnet = 1'
+    - 'vm.overcommit_memory=1'
+    - 'vm.panic_on_oom=0'
+    - 'fs.inotify.max_user_watches=89100'
+    - 'fs.file-max=52706963'
+    - 'fs.nr_open=52706963'
+    - 'net.netfilter.nf_conntrack_max=2310720'
+    - 'net.ipv4.tcp_keepalive_time = 600'
+    - 'net.ipv4.tcp_keepalive_probes = 3'
+    - 'net.ipv4.tcp_keepalive_intvl =15'
+    - 'net.ipv4.tcp_max_tw_buckets = 36000'
+    - 'net.ipv4.tcp_max_orphans = 327680'
+    - 'net.ipv4.tcp_orphan_retries = 3'
+    - 'net.ipv4.ip_conntrack_max = 65536'
+    - 'net.ipv4.tcp_max_syn_backlog = 16384'
+    - 'net.ipv4.tcp_timestamps = 0'
+    - 'net.ipv6.conf.all.disable_ipv6 = 1'
+    - 'net.ipv6.conf.default.disable_ipv6 = 0'
+    - 'net.ipv6.conf.lo.disable_ipv6 = 0'
+    - 'net.ipv6.conf.all.forwarding = 0'
+
+- name: modprobe br_netfilter;modprobe overlay
+  shell: "modprobe br_netfilter;modprobe overlay"
+
+- name: sysctl --system
+  shell: sysctl --system
+
+
+#- name: yum install centos-release-openstack-train
+#  yum: name=centos-release-openstack-train update_cache=true
+#
+#- name: yum install python-openstackclient,openstack-utils
+#  yum: name="python-openstackclient,openstack-utils"
+#  ignore_errors: true
+#
+#- name: To install the ceph release.asc key
+#  shell: rpm --import 'https://download.ceph.com/keys/release.asc'
+#
+#- name: Add ceph repo
+#  copy: src='ceph.repo' dest=/etc/yum.repos.d
+#
+#- name: yum install ceph-common
+#  yum: name='ceph-common'
+

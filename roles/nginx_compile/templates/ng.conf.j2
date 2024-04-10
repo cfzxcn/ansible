@@ -1,0 +1,21 @@
+{% set list=[131,13,31] %}
+upstream webs {
+  {% for i in list %}
+  server 192.168.1.{{ i }}:80;
+  {% endfor %}
+}
+# load balance
+# shell脚本的写法是：
+# sed -i '/^http/a upstream webs { \n server 192.168.1.131;\n server 192.168.1.13;\n }\n' /data/nginx/conf/conf.d/st.conf 
+# 意思是在st.conf文件中以http开头的行下使用a追加一行，集群名称是webs
+server {
+    listen {{ ngPort }};
+    server_name {{ ngServerName }};
+
+    location / {
+#        proxy_pass http://webs;
+# 调用集群
+        root   {{ ngInstallDir }}/html;
+        index  index.html index.htm;
+    }
+}

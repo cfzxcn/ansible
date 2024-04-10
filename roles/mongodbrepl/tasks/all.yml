@@ -1,0 +1,74 @@
+- name: create mongod group
+  group: name=mongod
+
+- name: create mongod user
+  user: name=mongod group=mongod shell=/sbin/nologin system=yes create_home=no
+
+- name: mkdir  mongo dbPath and logPath
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    owner: mongod
+    group: mongod
+  loop:
+    - "{{ mongoDataDir }}"
+    - "{{ mongoLogDir }}"
+
+- name: Generate mongod.conf mongod.service
+  template:
+    src: "{{ item.src }}.j2"
+    dest: "{{ item.dest }}"
+    owner: mongod
+    group: mongod
+  loop:
+    - { src: 'mongod.conf', dest: '/etc/mongod.conf' }
+  notify: restart mongod
+
+- name: Generate mongod.service
+  template:
+    src: "{{ item.src }}.j2"
+    dest: "{{ item.dest }}"
+  loop:
+    - { src: 'mongod.service', dest: '/usr/lib/systemd/system/mongod.service' }
+  notify: restart mongod
+
+- name: Copy mongod to /usr/local/bin
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: +x
+  loop:
+    - { src: 'mongodb-linux-x86_64-rhel70-6.0.12/bin/mongod', dest: '{{ mongodDir }}/mongod' }
+    - { src: 'mongodb-database-tools-rhel70-x86_64-100.9.3/bin/mongostat', dest: '{{ mongodDir }}/mongostat' }
+    - { src: 'mongodb-database-tools-rhel70-x86_64-100.9.3/bin/mongotop', dest: '{{ mongodDir }}/mongotop' }
+    - { src: 'mongodb-database-tools-rhel70-x86_64-100.9.3/bin/mongodump', dest: '{{ mongodDir }}/mongodump' }
+    - { src: 'mongodb-database-tools-rhel70-x86_64-100.9.3/bin/mongorestore', dest: '{{ mongodDir }}/mongorestore' }
+    - { src: 'mongodb-database-tools-rhel70-x86_64-100.9.3/bin/mongoimport', dest: '{{ mongodDir }}/mongoimport' }
+    - { src: 'mongodb-database-tools-rhel70-x86_64-100.9.3/bin/mongoexport', dest: '{{ mongodDir }}/mongoexport' }
+
+- name: Start mongod and daemon-reload
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "mongod.service"
+
+#- name: Start mongod
+#  shell: "mongod -f /etc/mongod.conf"
+#  shell: "mongod --dbpath {{ mongoDataDir }} --logpath {{ mongoLogDir }}/mongodb.log --fork --bind_ip 0.0.0.0"
+
+#############################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+

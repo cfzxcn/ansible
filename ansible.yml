@@ -1,0 +1,12 @@
+---
+- hosts: ub22
+#  remote_user: cf
+  gather_facts: true
+  ignore_errors: true
+  vars_files:
+    - group_vars/main.yml
+
+  roles:
+    - role: ansible
+      tags: ["ansible"]
+

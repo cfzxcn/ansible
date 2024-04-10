@@ -1,0 +1,10 @@
+packName: mysql-8.0.21-linux-glibc2.12-x86_64
+#packName: mysql-5.7.31-linux-glibc2.12-x86_64
+tarType: tar.xz
+#TARTYPE: tar.gz
+BASEDIR: /usr/local/mysql
+DATADIR: /data/mysql_data
+CFPASSWD: my@sql
+PORT: 9034
+dbVer: 8.0.34
+mysqlError: /var/log/mysqld.log

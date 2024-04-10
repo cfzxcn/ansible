@@ -1,0 +1,62 @@
+- name: Delete old conf file
+  shell: "ls /etc/cephs && rm -rf /etc/ceph/*;ls /var/lib/ceph && rm -rf /var/lib/ceph/*/*;ls /var/log/ceph && rm -rf /var/log/ceph/*;ls /var/run/ceph && rm -rf /var/run/ceph/*"
+  when: ansible_fqdn == 'c6.st.cn' or ansible_fqdn == 'c7.st.cn' or ansible_fqdn == 'c8.st.cn'
+
+# 安装ceph-deploy 开始
+- name: controller ceph-deploy tasts
+  block:
+    - name: yum install ceph-deploy
+      yum: name='ceph-deploy'
+
+    - name: mkdir ceph-cluster
+      file: "path={{ cephDir }} state=directory"
+
+    - name: ceph-deploy install --no-adjust-repos controller c1 c4 c6 c7 c8 安装ceph软件包
+      shell: cd {{ cephDir }} && ceph-deploy install --no-adjust-repos controller c1 c4 c6 c7 c8
+      tags: deployinstall
+# 安装ceph-deploy 结束
+
+    - name: copy ceph.conf to {{ cephDir }}
+      copy: "src=ceph.conf dest={{ cephDir }}/ceph.conf backup=yes"
+    
+    - name: ceph-deploy mon create-initial
+      shell: 'cd {{ cephDir }} && ceph-deploy --overwrite-conf mon create-initial'
+#      shell: cd {{ cephDir }} && ceph-deploy new --cluster-network 60.0.0.0/24 --public-network 192.168.1.0/24 c1:c1.st.cn
+    # 哪些node作为monitor node，在ceph.conf中指定
+
+    - name: ceph.bootstrap-osd.keyring
+      shell: "ceph-deploy gatherkeys controller c1 c4 c6 c7 c8"
+
+    - name: ceph-deploy rgw create c1
+      shell: 'cd {{ cephDir }} && ceph-deploy rgw create c1'
+    # 增加对象存储网关（rgw/radosgw）
+    
+    - name: ceph-deploy admin controller compute1 pxc1 pxc2 c1 c4 c6 c7 c8
+      shell: 'cd {{ cephDir }} && ceph-deploy --overwrite-conf admin controller c1 c4 c6 c7 c8'
+    # 用Ceph -deploy将配置文件和管理密钥复制到您的管理节点和Ceph节点
+    
+    - name: ceph config set mon auth_allow_insecure_global_id_reclaim false
+      shell: 'cd {{ cephDir }} && ceph config set mon auth_allow_insecure_global_id_reclaim false'
+    # 避免ceph -s出现：mons are allowing insecure global_id reclaim
+    
+    - name: ceph-deploy mgr create c4
+      shell: 'cd {{ cephDir }} && ceph-deploy --overwrite-conf mgr create c4'
+    # 部署manager node
+  when: ansible_fqdn == 'controller'
+
+- name:  Delete existing osd
+  shell: "lsblk | grep ceph &> /dev/null && for i in `lsblk | grep -B 1 ceph | grep 'sd.' -ow | tr '\n' ' '`;do ceph-volume lvm zap --destroy /dev/$i;done"
+  when: ansible_fqdn == 'c6.st.cn' or ansible_fqdn == 'c7.st.cn' or ansible_fqdn == 'c8.st.cn'
+
+- name:
+  block:
+    - name: ceph-deploy osd create
+      shell: 'cd {{ cephDir }};for i in 6 7 8;do ceph-deploy osd create --data /dev/sdb c$i;ceph-deploy osd create --data /dev/sdc c$i;done'
+      ignore_errors: yes
+
+    - name: ceph-deploy mds create c1
+      shell: 'cd {{ cephDir }} && ceph-deploy --overwrite-conf mds create c1'
+# 添加元数据服务器（mds主要用在cephfs场景，文件存储元数据信息）
+  when: ansible_fqdn == 'controller'
+
+

@@ -1,0 +1,28 @@
+---
+#- hosts: pxc1
+- hosts: zabbix-agent
+  ignore_errors: true
+  vars:
+    - softName: zabbix
+
+  tasks:
+  - name: stop "{{ softName }}-agentd.service"
+    ansible.builtin.systemd:
+      state: stopped
+      enabled: false
+      daemon_reload: true
+      name: "{{ softName }}-agentd.service"
+
+  - name: Delete {{ softName }} user 
+    user: name={{ softName }} state=absent remove=yes
+
+  - name: Delete files and dir
+    file: path={{ item }} state=absent
+    with_items: 
+      - "/usr/local/bin/zabbix_get"
+      - "/usr/local/bin/zabbix_sender"
+      - "/usr/local/sbin/zabbix_agentd"
+      - "/opt/zabbix_agent-6.0.18/"
+      - /usr/local/conf/
+      - /usr/lib/systemd/system/zabbix-agentd.service
+ 

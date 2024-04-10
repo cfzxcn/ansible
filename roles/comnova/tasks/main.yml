@@ -1,0 +1,64 @@
+- name: yum install centos-release-openstack-train
+  yum: name=centos-release-openstack-train update_cache=true
+
+- name: yum install python-openstackclient,openstack-utils
+  yum: name="python-openstackclient,openstack-utils"
+  ignore_errors: true
+
+- name: yum install openstack-nova-compute openstack-utils.noarch
+  yum: name="openstack-nova-compute"
+
+- name: Modify {{ novaName }} conf
+  shell: >
+    openstack-config --set /etc/nova/nova.conf DEFAULT enabled_apis osapi_compute,metadata &&
+    openstack-config --set /etc/nova/nova.conf DEFAULT transport_url rabbit://openstack:cf@controller &&
+    openstack-config --set /etc/nova/nova.conf DEFAULT my_ip "{{ ansible_facts.ens36.ipv4.address }}" &&
+    openstack-config --set /etc/nova/nova.conf DEFAULT use_neutron true &&
+    openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf api auth_strategy keystone &&
+    openstack-config --set /etc/nova/nova.conf glance api_servers http://controller:9292 &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken www_authenticate_uri http://controller:5000/ &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken auth_url http://controller:5000/ &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken memcached_servers controller:11211 &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken auth_type password &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken project_domain_name Default &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken user_domain_name Default &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken project_name service &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken username "{{ novaName }}" &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken password "{{ servicePasswd }}" &&
+    openstack-config --set /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp &&
+    openstack-config --set /etc/nova/nova.conf vnc enabled true &&
+    openstack-config --set /etc/nova/nova.conf vnc server_listen '0.0.0.0' &&
+    openstack-config --set /etc/nova/nova.conf vnc server_proxyclient_address '$my_ip' &&
+    openstack-config --set /etc/nova/nova.conf vnc vncserver_proxyclient_address '$my_ip' &&
+    openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://controller:6080/vnc_auto.html &&
+    openstack-config --set /etc/nova/nova.conf placement region_name RegionOne &&
+    openstack-config --set /etc/nova/nova.conf placement project_domain_name Default &&
+    openstack-config --set /etc/nova/nova.conf placement project_name service &&
+    openstack-config --set /etc/nova/nova.conf placement auth_type password &&
+    openstack-config --set /etc/nova/nova.conf placement user_domain_name Default &&
+    openstack-config --set /etc/nova/nova.conf placement auth_url http://controller:5000/v3 &&
+    openstack-config --set /etc/nova/nova.conf placement username placement &&
+    openstack-config --set /etc/nova/nova.conf placement password "{{ servicePasswd }}" &&
+    openstack-config --set /etc/nova/nova.conf libvirt virt_type qemu &&
+    openstack-config --set /etc/nova/nova.conf libvirt cpu_mode none
+
+- name: yum install qemu-kvm-tools 
+  yum: name="qemu-kvm-tools"
+
+- name: Modify /etc/libvirt/libvirtd.conf
+  template: src=libvirtd.conf.j2 dest=/etc/libvirt/libvirtd.conf backup=yes
+
+- name: Append a line to /etc/sysconfig/libvirtd
+  lineinfile: path=/etc/sysconfig/libvirtd line='LIBVIRTD_ARGS="--listen"' backup=true
+
+- name: systemctl enable --now libvirtd.service openstack-nova-compute
+#  systemd: name="libvirtd.service,openstack-nova-compute.service" state=started enabled=yes
+  shell: systemctl enable --now libvirtd.service openstack-nova-compute.service
+  ignore_errors: true
+
+
+
+
+
+

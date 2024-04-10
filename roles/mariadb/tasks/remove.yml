@@ -1,0 +1,29 @@
+---
+- hosts: sql
+#
+  tasks:
+  - name: stop service 
+    shell: systemctl stop mariadb && systemctl disable mariadb
+
+  - name: yum remove old-mariadb
+    shell: if rpm -qa | grep mariadb;then yum remove -y mariadb-libs;fi
+
+  - name: yum remove mariadb
+    shell: yum remove mariadb -y
+
+  - name: remove python2-PyMySQL
+    yum: name=python2-PyMySQL state=absent
+
+  - name: delete mysql user 
+    user: name=mysql state=absent remove=yes
+
+  - name: delete files and dir
+    file: path={{ item }} state=absent
+    with_items: 
+      - /etc/my.cnf.d/openstack.cnf
+      - /etc/yum.repos.d/MariaDB.repo
+      - /etc/systemd/system/mariadb.service.d
+      - /var/log/mariadb
+
+# 经测试，貌似不能使用*等通配符
+ 

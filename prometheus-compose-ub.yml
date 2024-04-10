@@ -1,0 +1,15 @@
+---
+#- hosts: allnode
+- hosts: ub
+#  remote_user: andy
+  gather_facts: true
+  ignore_errors: true
+  vars_files:
+    - group_vars/main.yml
+
+  roles:
+    - role: prometheus-compose-ub
+      tags: ["prometheus-compose-ub"]
+#    - { role: ceph-deploy-nautilus, tags: 'untagged' }
+# 我的目的是运行没有tags的task，经测试untagged无效
+

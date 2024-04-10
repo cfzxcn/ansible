@@ -1,0 +1,46 @@
+#- include_tasks: ../../init/tasks/kernel.yml
+#- include_tasks: /root/playbook/roles/init/tasks/init.yml
+# 1、为所有节点升级内核和系统及初始化，升级内核后需要reboot
+
+# 2、执行：ansible-playbook all.yml -t docker -v 为所有节点安装docker
+#- include_tasks: test.yml
+
+# ansible-playbook all.yml -t haproxy-yum -v
+# 3、安装haproxy，只配置master节点，必须先安装haproxy,再安装keepalived，否则keepalived无法启动
+
+# ansible-playbook all.yml -t keepalived-yum -v
+# 4、生成vip，只配置master节点
+
+#- include_tasks: all.yml
+# 5、对集群所有节点进行基本配置，包括创建CA证书
+
+#- include_tasks: etcd.yml
+# 6、所有master节点安装etcd.yml
+
+#- include_tasks: frontproxy.yml
+
+- include_tasks: apiserver.yml
+# 7、所有master节点安装apiserver.yml
+
+#- include_tasks: kubectl.yml
+# 8、所有节点安装并配置自动补全
+
+#- include_tasks: controller-manager.yml
+# 9、
+
+#- include_tasks: scheduler.yml
+# 10、所有节点安装并配置自动补全
+
+#- include_tasks: kubelet.yml
+# 11
+
+#- include_tasks: kubeproxy.yml
+# 12
+
+#- include_tasks: flannel.yml
+# 13
+
+#- include_tasks: coredns.yml
+# 14
+
+

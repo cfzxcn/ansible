@@ -1,0 +1,28 @@
+[Unit]
+Description=Etcd Server
+Documentation=https://coreos.com/etcd/docs/latest/
+After=network.target
+#After=network-online.target
+#Wants=network-online.target
+
+[Service]
+Type=notify
+#EnvironmentFile=-{{ kuberPath }}/cfg/etcd.conf
+#WorkingDirectory=/var/lib/etcd/
+ExecStart={{ kuberPath }}/bin/etcd --config-file={{ kuberPath }}/cfg/etcd.config.yml
+#ExecStart={{ kuberPath }}/bin/etcd \
+#  --cert-file={{ kuberPath }}/ssl/etcd.pem \
+#  --key-file={{ kuberPath }}/ssl/etcd-key.pem \
+#  --trusted-ca-file={{ kuberPath }}/ssl/ca.pem \
+#  --client-cert-auth \
+#  --peer-cert-file={{ kuberPath }}/ssl/etcd.pem \
+#  --peer-key-file={{ kuberPath }}/ssl/etcd-key.pem \
+#  --peer-trusted-ca-file={{ kuberPath }}/ssl/ca.pem \
+#  --peer-client-cert-auth
+Restart=on-failure
+RestartSec=10
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+#Alias=etcd3.service

@@ -1,0 +1,39 @@
+! Configuration File for keepalived
+
+global_defs {
+    router_id cf # 设为相同值
+}
+vrrp_script chk_apiserver {
+    script "/etc/keepalived/check_apiserver.sh" # 对haproxy监控的脚本
+    interval 5 
+    weight -5
+    fall 2
+    rise 1
+}
+#vrrp_script chk_nginx {
+#    script "/etc/keepalived/check_nginx.sh 28443"
+#    interval 2
+#    weight -20
+#}
+vrrp_instance VI_1 {
+    state BACKUP    # 所有节点都设为BACKUP，不设MASTER，并启用下面的nopreempt，这样可通过priority来抢夺vip
+    interface ens33
+    mcast_src_ip {{ ansible_default_ipv4.address }}
+    virtual_router_id {{ VRID }}  # 虚拟路由器id，各主机此值设为不同
+    priority {{ keepPriority }}  # 优先级，不同主机优先级可不同
+    nopreempt
+    advert_int 2
+    authentication {
+        auth_type PASS
+        auth_pass cf # 指定验证密码，同一集群的主机此值必须相同
+    }
+    virtual_ipaddress {
+        {{ k8svip }} dev ens33 label ens33:1  # 指定vip，同一集群的主机此值必须相同
+    }
+    track_script {
+      chk_apiserver 
+    }
+#    track_script {
+#      chk_nginx 
+#    }
+}

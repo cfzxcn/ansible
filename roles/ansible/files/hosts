@@ -1,0 +1,81 @@
+#[co]
+#192.168.1.131 ansible_ssh_private_key_file=/root/.ssh/id_rsa
+[all:vars]
+ansible_connection=ssh
+ansible_ssh_user=root
+ansible_ssh_pass="cf"
+ansible_ssh_private_key_file=/root/.ssh/id_rsa
+# 以上3条必须分行写，写在一行会报错
+[ub]
+192.168.1.204
+
+[ub22]
+192.168.1.220
+
+[uos]
+192.168.1.201 hostName=rac1
+192.168.1.202 hostName=rac2
+
+[controller]
+#30.0.0.30 ansible_ssh_private_key_file=/root/.ssh/id_rsa
+192.168.1.30 rabbitIp=192.168.1.30 hostName=controller.st.cn
+
+[compute1]
+192.168.1.31 ensXip=30.0.0.31 hostName=compute1.st.cn
+
+[compute2]
+192.168.1.32 ensXip=30.0.0.32 hostName=compute2.st.cn 
+#[compute3]
+#192.168.1.33
+#[compute4]
+#192.168.1.34
+
+[pxc]
+#controller server_id=21 rabbitIp=192.168.1.21 ensXip=30.0.0.21 hostName=controller.st.cn role=bootstrap pxcVer8=true
+pxc2 server_id=22 rabbitIp=192.168.1.22 ensXip=30.0.0.22 hostName=pxc2.st.cn role=mysql2 pxcVer8=true
+pxc3 server_id=23 rabbitIp=192.168.1.23 ensXip=30.0.0.23 hostName=pxc3.st.cn role=mysql3 pxcVer8=true
+
+[pcs]
+ha1 role=ha1
+ha2 role=ha2
+ha3 role=ha3
+#[pcs]
+#master1 role=master1
+#master2 role=master2
+##master3 role=master3
+[k8masters]
+192.168.1.61 ensXip=60.0.0.61 hostName=c1.st.cn
+#192.168.1.62 ensXip=60.0.0.62 hostName=c2.st.cn
+#192.168.1.63 ensXip=60.0.0.63 hostName=c3.st.cn
+192.168.1.64 ensXip=60.0.0.64 hostName=c4.st.cn
+192.168.1.66 ensXip=60.0.0.66 hostName=c6.st.cn
+# k8masters分组用于kube-apiserver-csr.json.j2获取k8s的所有master的ip
+
+[ceph]
+192.168.1.61 ensXip=60.0.0.61 hostName=c1.st.cn keepPriority=100 VRID=60
+#192.168.1.62 ensXip=60.0.0.62 hostName=c2.st.cn keepState=BACKUP keepPriority=50
+#192.168.1.63 ensXip=60.0.0.63 hostName=c3.st.cn keepState=BACKUP keepPriority=30
+192.168.1.64 ensXip=60.0.0.64 hostName=c4.st.cn keepPriority=50 VRID=70
+192.168.1.66 ensXip=60.0.0.66 hostName=c6.st.cn keepPriority=30 VRID=80
+192.168.1.67 ensXip=60.0.0.67 hostName=c7.st.cn
+192.168.1.68 ensXip=60.0.0.68 hostName=c8.st.cn
+
+#[ceph:vars]
+#ansible_ssh_user=root
+#ansible_ssh_pass="cf"
+#ansible_ssh_private_key_file=/root/.ssh/id_rsa
+
+[rabbitmq:children]
+#controller
+pxc
+
+[allnode:children]
+#pxc
+#compute1
+ceph
+#controller
+
+[allslave:children]
+pxc
+compute1
+ceph

@@ -1,0 +1,34 @@
+- name:
+  block:
+#################################################################
+    - name: kubectl config admin set-cluster kubernetes
+      shell: "kubectl config set-cluster kubernetes \
+      --certificate-authority={{ kuberPath }}/ssl/ca.pem \
+      --embed-certs=true \
+      --server={{ httpskvip }} \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+ 
+    - name: kubectl config set-credentials kubernetes-admin
+      shell: "kubectl config set-credentials admin \
+      --client-certificate={{ kuberPath }}/ssl/admin.pem \
+      --client-key={{ kuberPath }}/ssl/admin-key.pem \
+      --embed-certs=true \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+
+    - name: kubectl config set-context kubernetes-admin@kubernetes
+      shell: "kubectl config set-context kubernetes \
+      --cluster=kubernetes \
+      --user=admin \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+
+    - name: kubectl config use-context kubernetes-admin@kubernetes
+      shell: "kubectl config use-context kubernetes \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+
+##############################################################
+
+    - name: Copy {{ kuberPath }}/cfg/* to all nodes
+      shell: "for i in c4 c6;do rsync -az {{ kuberPath }}/cfg/*{admin,controller,scheduler}*.kubeconfig $i:{{ kuberPath }}/cfg;done"
+
+  when: ansible_hostname == 'c1'
+

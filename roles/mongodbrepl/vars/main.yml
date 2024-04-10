@@ -1,0 +1,3 @@
+mongoDataDir: /data/mongodb
+mongoLogDir: /var/log/mongodb
+mongodDir: /usr/local/bin

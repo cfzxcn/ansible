@@ -1,0 +1,159 @@
+global
+  log      127.0.0.1     local0 info
+#  chroot   /var/lib/haproxy
+  daemon
+#  group    haproxy
+#  user     haproxy
+  maxconn  60000
+#  pidfile  /var/run/haproxy.pid
+  stats    socket /var/lib/haproxy/stats mode 660 level admin
+defaults
+    mode                    http
+    log                     global
+    maxconn                 10000    #最大连接数
+    option                  httplog
+    option  		    dontlognull
+    option                  redispatch
+    retries                 3
+    timeout http-request    10s
+    timeout queue           1m
+    timeout connect         10s
+    timeout client          1m
+    timeout server          1m
+    timeout check           10s
+# haproxy监控页
+listen stats
+  bind 0.0.0.0:1080
+#  bind cfvip:1080
+  mode http
+  stats enable
+  stats uri /
+  stats realm OpenStack\ Haproxy
+  stats auth admin:cf
+  stats  refresh 10s
+  stats  show-node
+  stats  show-legends
+#  stats  hide-version
+##另外官方示例为检测9200（心跳）端口，测试在mariadb服务宕机的情况下，虽然”/usr/bin/clustercheck”脚本已探测不到服务，但受xinetd控制的9200端口依然正常，导致haproxy始终将请求转发到mariadb服务宕机的节点，暂时修改为监听3306端口
+listen pxc_cluster
+#  bind cfvip:{{ vipdbPort }}
+  bind cfvip:3306
+#  balance  source
+  balance  leastconn
+  mode   http
+  server controller controller:3306 weight 1 check inter 2000 rise 2 fall 5
+  server pxc2 pxc2:3306 weight 1 check inter 2000 rise 2 fall 5
+  server pxc3 pxc3:3306 weight 1 check inter 2000 rise 2 fall 5
+
+listen RabbitMQ-Web
+  bind cfvip:15671
+  mode http
+  balance roundrobin
+  option tcpka
+  server ha1 ha1:15672 check inter 5s rise 2 fall 3
+  server ha2 ha2:15672 check inter 5s rise 2 fall 3
+  server ha3 ha3:15672 check inter 5s rise 2 fall 3
+##为rabbirmq提供ha集群访问端口，供openstack各服务访问；
+##如果openstack各服务直接连接rabbitmq集群，这里可不设置rabbitmq的负载均衡
+listen rabbitmq_cluster
+#  bind cfvip:5672
+#  bind {{ ansible_facts.ens34.ipv4.address }}:5671
+  bind cfvip:5671
+  mode http
+  option tcpka
+  balance roundrobin
+  timeout client  3h
+  timeout server  3h
+  option  clitcpka
+  server ha1 ha1:5672 check inter 10s rise 2 fall 2
+  server ha2 ha2:5672 check inter 10s rise 2 fall 2
+  server ha3 ha3:5672 check inter 10s rise 2 fall 2
+## keystone_public _api服务
+listen keystone_public_cluster
+  bind cfvip:4999
+  balance  source
+  option  tcpka
+  option  httpchk
+  option  tcplog
+  server ha1 ha1:5000 check inter 2000 rise 2 fall 5
+  server ha2 ha2:5000 check inter 2000 rise 2 fall 5
+  server ha3 ha3:5000 check inter 2000 rise 2 fall 5
+#
+listen glance_api_cluster
+ bind  cfvip:9290
+ balance  source
+ option  tcpka
+ option  httpchk
+ option  tcplog
+ timeout client 3h 
+ timeout server 3h
+ server ha1 ha1:9292 check inter 2000 rise 2 fall 5
+ server ha2 ha2:9292 check inter 2000 rise 2 fall 5
+ server ha3 ha3:9292 check inter 2000 rise 2 fall 5
+
+listen placement_cluster
+ bind cfvip:8777
+ balance  source
+ option  tcpka
+ option  tcplog
+ server ha1 ha1:8778 check inter 2000 rise 2 fall 5
+ server ha2 ha2:8778 check inter 2000 rise 2 fall 5
+ server ha3 ha3:8778 check inter 2000 rise 2 fall 5
+
+listen nova_api_cluster
+ bind cfvip:6774
+ balance  source
+ option  tcpka
+ option  httpchk
+ option  tcplog
+ server ha1 ha1:8774 check inter 2000 rise 2 fall 5
+ server ha2 ha2:8774 check inter 2000 rise 2 fall 5
+ server ha3 ha3:8774 check inter 2000 rise 2 fall 5
+
+listen nova_metadata_api_cluster
+ bind cfvip:6775
+ balance  source
+ option  tcpka
+ option  tcplog
+ server ha1 ha1:8775 check inter 2000 rise 2 fall 5
+ server ha2 ha2:8775 check inter 2000 rise 2 fall 5
+ server ha3 ha3:8775 check inter 2000 rise 2 fall 5
+
+listen nova_vncproxy_cluster
+ bind cfvip:6079
+ balance  source
+ option  tcpka
+ option  tcplog
+ server ha1 ha1:6080 check inter 2000 rise 2 fall 5
+ server ha2 ha2:6080 check inter 2000 rise 2 fall 5
+ server ha3 ha3:6080 check inter 2000 rise 2 fall 5
+
+listen neutron_api_cluster
+ bind cfvip:9695
+ balance  source
+ option  tcpka
+ option  httpchk
+ option  tcplog
+ server ha1 ha1:9696 check inter 2000 rise 2 fall 5
+ server ha2 ha2:9696 check inter 2000 rise 2 fall 5
+ server ha3 ha3:9696 check inter 2000 rise 2 fall 5
+
+listen cinder_api_cluster
+ bind cfvip:7776
+ balance  source
+ option  tcpka
+ option  httpchk
+ option  tcplog
+ server ha1 ha1:8776 check inter 2000 rise 2 fall 5
+ server ha2 ha2:8776 check inter 2000 rise 2 fall 5
+ server ha3 ha3:8776 check inter 2000 rise 2 fall 5
+## horizon服务
+# listen dashboard_cluster
+#  bind  10.10.10.10:80
+#  balance  source
+#  option  tcpka
+#  option  httpchk
+#  option  tcplog
+#  server ha1 ha1:80 check inter 2000 rise 2 fall 5
+#  server ha2 ha2:80 check inter 2000 rise 2 fall 5
+#  server ha3 ha3:80 check inter 2000 rise 2 fall 5

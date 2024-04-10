@@ -1,0 +1,21 @@
+[Unit]
+Description=Kubernetes Proxy
+After=network.target
+
+[Service]
+#EnvironmentFile={{ kuberPath }}/cfg/kube-proxy.conf
+#ExecStart={{ kuberPath }}/bin/kube-proxy $KUBE_PROXY_OPTS
+
+ExecStart={{ kuberPath }}/bin/kube-proxy \
+  --config={{ kuberPath }}/cfg/kube-proxy.yaml \
+  --v=2
+
+Restart=always
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+

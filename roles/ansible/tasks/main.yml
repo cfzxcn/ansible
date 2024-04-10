@@ -1,0 +1,43 @@
+# 用pip安装ansible
+- name: mkdir /etc/ansible  /root/playbook
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+  loop:
+    - /etc/ansible
+    - /root/playbook/group_vars
+    - /root/playbook/roles
+
+- name: copy /root/playbook/group_vars/main.yml
+  copy:
+    src: "/root/playbook/group_vars/main.yml"
+    dest: "/root/playbook/group_vars/main.yml"
+
+- name: copy 'get-pip.py / pip.conf / ansible.cfg / hosts' to host
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+#    mode: +x
+  loop:
+    - { src: 'get-pip.py', dest: '/tmp' }
+    - { src: 'pip.conf', dest: '/etc' }
+    - { src: 'ansible.cfg', dest: '/etc/ansible/ansible.cfg' }
+    - { src: 'hosts', dest: '/etc/ansible/hosts' }
+
+- name: python3 /tmp/get-pip.py --user
+  shell: "python3 /tmp/get-pip.py --user"
+
+- name: python3 -m pip install --user ansible
+  shell: "python3 -m pip install --user ansible"
+
+- name: ln -s /root/.local/bin/ansible /usr/bin/ansible，/root/.local/bin/pip /usr/bin/pip
+  file:
+    src: "/root/.local/bin/{{ item.src }}"
+    dest: "/usr/bin/{{ item.dest }}"
+    state: link
+  loop:
+    - { src: 'ansible', dest: 'ansible' }
+    - { src: 'pip', dest: 'pip' }
+
+

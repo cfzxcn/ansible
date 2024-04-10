@@ -1,0 +1,59 @@
+- name:
+  block:
+    - name: Generate etcd.service and etcd.conf
+      template:
+        src: "{{ item.cfsrc }}.j2"
+        dest: "{{ item.cfdest }}"
+      loop:
+        - { cfsrc: 'etcd.service', cfdest: '/usr/lib/systemd/system/etcd.service' }
+#        - { cfsrc: 'etcd.conf', cfdest: '{{ kuberPath }}/cfg/etcd.conf' }
+        - { cfsrc: 'etcd.config.yml', cfdest: '{{ kuberPath }}/cfg/etcd.config.yml' }
+    #    force: yes
+      notify: restart etcd
+    
+    - name: Start etcd and daemon-reload
+      ansible.builtin.systemd:
+        state: restarted
+        enabled: true
+        daemon_reload: true
+        name: "etcd.service"
+    
+    - name: Generate kube-apiserver.conf
+      template:
+        src: "kubernetes/{{ item.cfsrc }}"
+        dest: "{{ item.cfdest }}"
+      loop:
+        - { cfsrc: 'kube-apiserver.service.j2', cfdest: '/usr/lib/systemd/system/kube-apiserver.service' }
+        - { cfsrc: 'kube-controller-manager.service.j2', cfdest: '/usr/lib/systemd/system/kube-controller-manager.service' }
+        - { cfsrc: 'kube-scheduler.service.j2', cfdest: '/usr/lib/systemd/system/kube-scheduler.service' }
+#        - { cfsrc: 'token.csv.j2', cfdest: '/opt/kubernetes/cfg/token.csv' }
+#    #    token.csv.j2中第一个逗号前的token，是在co7用：head -c 16 /dev/urandom | od -An -t x | tr -d ' '生成的
+#        - { cfsrc: 'kube-apiserver.conf.j2', cfdest: '/opt/kubernetes/cfg/kube-apiserver.conf' }
+#        - { cfsrc: 'kube-controller-manager.conf.j2', cfdest: '/opt/kubernetes/cfg/kube-controller-manager.conf' }
+#    #    - { cfsrc: 'kube-controller-manager-csr.json.j2', cfdest: '/opt/kubernetes/cfg/kube-controller-manager-csr.json' }
+#        - { cfsrc: 'kube-scheduler.conf.j2', cfdest: '/opt/kubernetes/cfg/kube-scheduler.conf' }
+#    #  notify: restart etcd
+#    
+    - name: Start kube-apiserver and daemon-reload
+      ansible.builtin.systemd:
+        state: started
+        enabled: true
+        daemon_reload: true
+        name: "kube-apiserver.service"
+
+    - name: Start kube-controller-manager and daemon-reload
+      ansible.builtin.systemd:
+        state: started
+        enabled: true
+        daemon_reload: true
+        name: "kube-controller-manager.service"
+    
+    - name: Start kube-scheduler and daemon-reload
+      ansible.builtin.systemd:
+        state: started
+        enabled: true
+        daemon_reload: true
+        name: "kube-scheduler.service"
+
+  when: ansible_hostname == 'c1' or ansible_hostname == 'c2' or ansible_hostname == 'c3'
+

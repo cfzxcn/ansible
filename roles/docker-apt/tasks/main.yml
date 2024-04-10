@@ -1,0 +1,76 @@
+# 1、Set up Docker's apt repository
+- name: Run the equivalent of "apt-get update" as a separate step
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: apt Install ca-certificates  curl
+  ansible.builtin.apt:
+    pkg:
+    - ca-certificates
+    - curl
+
+- name: sudo install -m 0755 -d /etc/apt/keyrings
+  shell: "sudo install -m 0755 -d /etc/apt/keyrings"
+
+- name: curl -fsSL http://mirrors.ustc.edu.cn/docker-ce/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  ansible.builtin.get_url:
+    url: "http://mirrors.ustc.edu.cn/docker-ce/linux/ubuntu/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+# https://download.docker.com/linux/ubuntu/gpg换为http://mirrors.ustc.edu.cn/docker-ce/linux/ubuntu/gpg
+
+- name: sudo chmod a+r /etc/apt/keyrings/docker.asc
+  file:
+    path: /etc/apt/keyrings/docker.asc
+    mode: a+r
+
+- name: Add the repository to Apt sources
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://mirrors.ustc.edu.cn/docker-ce/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+# 把原来的download.docker.com换成mirrors.ustc.edu.cn/docker-ce，因为无法访问，否则apt-get update时会有error
+#  shell: 'echo \
+#			  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+#			  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null'
+
+- name: Run the equivalent of "apt-get update" as a separate step
+  ansible.builtin.apt:
+    update_cache: yes
+
+###################################################################
+# 2、Install Docker Engine
+- name: apt Install docker-ce={{ dockerAptVersion }} docker-ce-cli={{ dockerAptVersion }} containerd.io docker-buildx-plugin docker-compose-plugin
+  ansible.builtin.apt:
+    pkg:
+    - docker-ce={{ dockerAptVersion }}
+    - docker-ce-cli={{ dockerAptVersion }}
+    - containerd.io
+    - docker-buildx-plugin
+    - docker-compose-plugin
+
+- name: mkdir /etc/docker
+  file: path="/etc/docker" state=directory recurse=yes
+
+- name: Copy accelerator daemon.json to /etc/docker/
+  copy: src=../../docker/files/daemon.json dest=/etc/docker/daemon.json
+  notify: 'daemon-reload and restart docker'
+
+#- name: Create the docker group
+#  ansible.builtin.group:
+#    name: docker
+#    state: present
+#
+#- name: adding existing user andy to group docker
+#  user:
+#    name: andy
+#    groups: docker
+#    append: yes
+#
+#- name: start and enable docker containerd
+#  service: name="docker" state=started enabled=yes
+# apt安装的不用systemctl enable --now docker，会自动设为开机自启并启动
+
+- name: 查看状态
+  shell: docker info
+  register: docker
+
+- debug: var=docker.stdout_lines

@@ -1,0 +1,44 @@
+- name: Copy flanneld mk-docker-opts.sh to "{{ kuberPath }}/bin"
+  copy: 
+    src: "{{ item }}"
+    dest: "{{ kuberPath }}/bin"
+    mode: +x
+  loop:
+    - flanneld
+    - mk-docker-opts.sh
+
+- name: Generate flannel  flannel.service
+  template:
+    src: "{{ item.src }}.j2"
+    dest: "{{ item.dest }}"
+  loop:
+    - { src: 'flannel', dest: "{{ kuberPath }}/cfg/flannel" }
+    - { src: 'flannel.service', dest: '/usr/lib/systemd/system/flannel.service' }
+
+- name: etcdctl ...
+  shell: "{{ kuberPath }}/bin/etcdctl --cacert=ca.pem --cert=server.pem --key=server-key.pem --endpoints='{{ etcdAddrS }}' put /coreos.com/network/config '{ Network: 172.17.0.0/16, Backend: {Type: vxlan}}'"
+  args:
+    chdir: "{{ kuberPath }}/ssl"
+
+- name: systemctl enable --now flannel.service
+  systemd: name="flannel.service" state=started enabled=yes
+
+- name: Add 'EnvironmentFile=/run/flannel/subnet.env' to /usr/lib/systemd/system/docker.service
+  lineinfile:
+    path: /usr/lib/systemd/system/docker.service
+    insertbefore: "ExecStart(.*)"
+    line: "EnvironmentFile=/run/flannel/subnet.env"
+    backup: yes
+
+- name: Modify 'ExecStart\1 $DOCKER_NETWORK_OPTIONS' /usr/lib/systemd/system/docker.service
+  lineinfile:
+    dest: /usr/lib/systemd/system/docker.service
+    regexp: "^ExecStart(.*)"
+    line: 'ExecStart\1 $DOCKER_NETWORK_OPTIONS'
+    backrefs: yes
+    backup: yes
+
+- name: restart docker
+  systemd: name=docker state=restarted daemon_reload=true
+
+

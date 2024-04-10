@@ -1,0 +1,2 @@
+- name: restart etcd
+  service: name=etcd.service state=restarted

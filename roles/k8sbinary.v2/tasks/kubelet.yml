@@ -1,0 +1,74 @@
+- name: mkdir multi path for kubulet
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+  loop:
+    - /etc/cni/net.d
+    - /opt/cni/net.d
+    - /var/lib/kubelet
+    - /etc/kubernetes/manifests
+
+- name: copy kubelet service and conf
+  template:
+    src: "kubernetes/{{ item.cfsrc }}.j2"
+    dest: "{{ item.cfdest }}"
+  loop:
+    - { cfsrc: 'kubelet.service', cfdest: '/usr/lib/systemd/system/kubelet.service' }
+    - { cfsrc: 'kubelet-conf.yml', cfdest: '/opt/kubernetes/cfg/kubelet-conf.yml' }
+
+- name:
+  block:
+#########################################################################
+# 创建kubelet-bootstrap.kubeconfig
+# token的值是c1上：awk -F "," '{print $1}' /opt/kubernetes/ssl/token.csv 算出的
+    - name: kubectl config bootstrap set-cluster kubernetes
+      shell: "kubectl config set-cluster kubernetes \
+      --certificate-authority={{ kuberPath }}/ssl/ca.pem \
+      --embed-certs=true \
+      --server={{ httpskvip }} \
+      --kubeconfig={{ kuberPath }}/cfg/kubelet-bootstrap.kubeconfig"
+
+    - name: kubectl config set-credentials kubelet-bootstrap
+      shell: "kubectl config set-credentials kubelet-bootstrap \
+      --token=579e10660ddbfe64a9c584eb241bec7e \
+      --kubeconfig={{ kuberPath }}/cfg/kubelet-bootstrap.kubeconfig"
+
+    - name: kubectl config set-context tls-bootstrap-token-user@kubernetes
+      shell: "kubectl config set-context default --cluster=kubernetes \
+      --user=kubelet-bootstrap \
+      --kubeconfig={{ kuberPath }}/cfg/kubelet-bootstrap.kubeconfig"
+ 
+    - name: kubectl config use-context tls-bootstrap-token-user@kubernetes
+      shell: "kubectl config use-context default \
+      --kubeconfig={{ kuberPath }}/cfg/kubelet-bootstrap.kubeconfig"
+
+#########################################################################
+
+    - name: kubectl create clusterrolebinding tls-bootstrap-token-user --clusterrole=system:node-bootstrapper --user=tls-bootstrap-token-user
+      shell: "kubectl create clusterrolebinding cluster-system-anonymous \
+      --clusterrole=cluster-admin --user=kubelet-bootstrap"
+
+    - name: kubectl create clusterrolebinding tls-bootstrap-token-user --clusterrole=system:node-bootstrapper --user=tls-bootstrap-token-user
+      shell: "kubectl create clusterrolebinding kubelet-bootstrap \
+      --clusterrole=system:node-bootstrapper --user=kubelet-bootstrap \
+      --kubeconfig={{ kuberPath }}/cfg/kubelet-bootstrap.kubeconfig"
+# 验证方法：
+# kubectl describe clusterrolebinding cluster-system-anonymous
+# kubectl describe clusterrolebinding kubelet-bootstrap
+##############################################################
+    - name: Copy {{ kuberPath }}/cfg/kube-scheduler.kubeconfig  to other master node
+      shell: "for i in 4 6 7 8;do rsync -az {{ kuberPath }}/cfg/kubelet-bootstrap.kubeconfig c$i:{{ kuberPath }}/cfg;done"
+
+    - name: Copy {{ kuberPath }}/ssl/ca*.pem to other worker node
+      shell: "for NODE in 7 8;do rsync -az {{ kuberPath }}/ssl/ca*.pem c$NODE:{{ kuberPath }}/ssl;done"
+# 全部重新安装可以去掉以上两行，因为在all.yml中已经分发了ca*.pem
+  when: ansible_hostname == 'c1'
+
+- name: Start kubelet and daemon-reload
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "kubelet.service"
+

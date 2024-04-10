@@ -1,0 +1,11 @@
+- include_tasks: install-placement-cluster.yml
+- include_tasks: pip-co7.yml
+
+- name: pip install osc-placement==1.6.0
+  shell: "pip install osc-placement==1.6.0"
+
+- name: Restart httpd service
+  service: name=httpd state=restarted
+
+
+

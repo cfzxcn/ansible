@@ -1,0 +1,93 @@
+---
+#- hosts: compute
+#  remote_user: andy
+#  gather_facts: true
+#
+#  roles:
+#    - role: comnova
+#      tags: ["comnova"]
+#    - role: comneutron
+#      tags: ["comneutron"]
+#    - role: computeinit
+#      tags: ["computeinit"]
+#- hosts: rabbitmq
+#- hosts: compute1
+#- hosts: pxc
+#- hosts: pcs
+#- hosts: ub
+- hosts: ceph
+#- hosts: uos
+#  remote_user: andy
+  gather_facts: true
+  ignore_errors: true
+  vars_files:
+    - group_vars/main.yml
+
+  roles:
+    - role: init
+      tags: ["init"]
+    - role: controllerinit
+      tags: ["controllerinit"]
+    - role: rabbitmq
+      tags: ["rabbitmq"]
+    - role: memcached
+      tags: ["memcached"]
+    - role: redis
+      tags: ["redis"]
+    - role: keepalived-yum
+      tags: ["keepalived-yum"]
+    - role: haproxy
+      tags: ["haproxy"]
+    - role: haproxy-yum
+      tags: ["haproxy-yum"]
+    - role: pcs
+      tags: ["pcs"]
+    - role: pxc
+      tags: ["pxc"]
+    - role: pxc8
+      tags: ["pxc8"]
+    - role: mysql
+      tags: ["mysql"]
+    - role: mysqlbundle
+      tags: ["mysqlbundle"]
+    - role: mysqlyum
+      tags: ["mysqlyum"]
+    - role: keystone_cluster
+      tags: ["keystone_cluster"]
+    - role: keystone
+      tags: ["keystone"]
+    - role: glance
+      tags: ["glance"]
+    - role: placement_cluster
+      tags: ["placement_cluster"]
+    - role: placement
+      tags: ["placement"]
+    - role: neutron
+      tags: ["neutron"]
+    - role: cinder
+      tags: ["cinder"]
+    - role: nova
+      tags: ["nova"]
+    - role: horizon
+      tags: ["horizon"]
+    - role: httpd
+      tags: ["httpd"]
+    - role: mariadb
+      tags: ["mariadb"]
+    - role: php
+      tags: ["php"]
+    - role: nginx
+      tags: ["nginx"]
+    - role: nginx_compile
+      tags: ["nginx_compile"]
+    - role: java
+      tags: ["java"]
+    - role: k8sy
+      tags: ["k8sy"]
+    - role: k8sbinary
+      tags: ["k8sbinary"]
+    - role: docker
+      tags: ["docker"]
+    - role: zabbix-agent
+      tags: ["zabbix-agent"]
+

@@ -1,0 +1,17 @@
+---
+- hosts: allnode
+#- hosts: ceph
+#  remote_user: andy
+  gather_facts: true
+  ignore_errors: true
+  vars_files:
+    - group_vars/main.yml
+
+  roles:
+#    - role: init
+#      tags: ["init"]
+    - role: k8sbinary
+      tags: ["k8sbinary"]
+#    - { role: ceph-deploy-nautilus, tags: 'untagged' }
+# 我的目的是运行没有tags的task，经测试untagged无效
+

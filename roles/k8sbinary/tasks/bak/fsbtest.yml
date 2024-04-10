@@ -1,0 +1,7 @@
+- name: sed -ri '/^[^#]*swap/s@^@#@' /etc/fstab
+  lineinfile:
+    dest: /etc/fstab
+    regexp: "(^[^#]*)swap(.*0$)"
+    line: '#\1swap\2'
+    backrefs: yes
+    backup: yes

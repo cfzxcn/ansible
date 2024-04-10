@@ -1,0 +1,13 @@
+- hosts: 192.168.1.68
+  tasks:
+    - name: sync clock time
+      shell: ntpdate ntp3.aliyun.com
+      register: time_result
+#      ignore_errors: yes
+
+    - name: show debug msg
+#      debug: var=time_result
+      debug: msg="时间同步成功！输出为：{{ time_result.stdout }}"
+      when: time_result.rc == 0
+# 这里的rc是：使用 debug: var=time_result 后输出中的变量名
+      

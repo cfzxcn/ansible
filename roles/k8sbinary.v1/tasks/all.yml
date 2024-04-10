@@ -1,0 +1,98 @@
+- name: sed -ri '/^[^#]*swap/s@^@#@' /etc/fstab
+  lineinfile:
+    dest: /etc/fstab
+    regexp: "(^[^#]*)swap(.*0$)"
+    line: '#\1swap\2'
+    backrefs: yes
+    backup: yes
+
+- name: swapoff
+  shell: "swapoff -a && sysctl -w vm.swappiness=0"
+
+- name: modprobe br_netfilter
+  shell: modprobe br_netfilter
+
+- name: mkdir {{ kuberPath }}/{bin,cfg,ssl,logs} -p
+  file:
+    path: "{{ kuberPath }}/{{ item }}"
+    state: directory
+    recurse: yes
+  loop:
+    - bin
+    - cfg
+    - ssl
+    - logs
+
+- name:
+  block:
+    - name: Copy kubectl kubelet kube-proxy kube-apiserver kube-scheduler kube-controller-manager to master nodes
+      copy:
+        src: "kubernetes/server/bin/{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: +x
+      loop:
+        - { src: 'kube-apiserver', dest: '/opt/kubernetes/bin' }
+        - { src: 'kube-scheduler', dest: '/opt/kubernetes/bin' }
+        - { src: 'kube-controller-manager', dest: '/opt/kubernetes/bin' }
+        - { src: 'kubectl', dest: '/opt/kubernetes/bin' }
+        - { src: 'kubelet', dest: '/opt/kubernetes/bin' }
+        - { src: 'kube-proxy', dest: '/opt/kubernetes/bin' }
+    
+    - name: Copy etcdctl and etcd to {{ kuberPath }}/bin/
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ kuberPath }}/{{ item.dest }}"
+        mode: +x
+      loop:
+        - { src: 'etcd', dest: 'bin' }
+        - { src: 'etcdctl', dest: 'bin' }
+# etcd和etcdctl这两个文件是拷贝的etcd-v3.5.10-linux-amd64.tar.gz中解压出来的,非master节点也要复制，因为flannel.yml中要用到
+  when: ansible_hostname == 'c1' or ansible_hostname == 'c2' or ansible_hostname == 'c3'
+
+#####################################
+- name: Append {{ kuberPath }}/bin to ~/.bashrc
+  lineinfile: path='~/.bashrc' line='PATH={{ kuberPath }}/bin:$PATH' backup=true
+
+- name: Source PATH variable
+  shell: "source ~/.bashrc"
+  args:
+    executable: /bin/bash
+# 或者用软链接实现    
+
+######################################
+
+- name: mkdir /opt/cni/bin -p
+  file: path="/opt/cni/bin" state=directory recurse=yes
+
+- name: yum install ipvsadm ipset sysstat conntrack libseccomp
+  yum: name='ipvsadm,ipset,sysstat,conntrack,libseccomp'
+
+- name: Copy ipvs.conf to /etc/modules-load.d/ipvs.conf
+  copy: src=ipvs.conf dest="/etc/modules-load.d/ipvs.conf"
+
+- name: Start systemd-modules-load.service and daemon-reload
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "systemd-modules-load.service"
+
+- name: Copy cfssl* to /usr/local/bin
+  copy:
+    src: "{{ item.cfsrc }}"
+    dest: "/usr/local/bin/{{ item.cfdest }}"
+    mode: +x
+  loop:
+    - { cfsrc: 'cfssl_1.6.4', cfdest: 'cfssl' }
+    - { cfsrc: 'cfssljson_1.6.4', cfdest: 'cfssljson' }
+    - { cfsrc: 'cfssl-certinfo_1.6.4', cfdest: 'cfssl-certinfo' }
+  when: ansible_hostname == 'c1'
+
+
+
+
+
+
+
+
+

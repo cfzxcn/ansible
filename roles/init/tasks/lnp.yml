@@ -1,0 +1,57 @@
+---
+- hosts: sql
+  gather_facts: no
+  vars:
+    http_port: 80
+    server_name: www.st.com
+
+  tasks:
+
+  - name: Add nginx repo
+    yum_repository:
+      name: nginx
+      description: nginx repo
+      baseurl: http://nginx.org/packages/centos/$releasever/$basearch/
+      gpgcheck: yes
+      enabled: 1
+      gpgkey: https://nginx.org/keys/nginx_signing.key
+    tags:
+      - addrepo
+
+  - name: Yum Install Nginx
+    yum:
+      name: nginx
+      state: latest
+    tags: install nginx
+
+  - name: copy nignx configuration file to client
+    template:
+      src: ng.conf.j2
+      dest: /etc/nginx/conf.d/www.st.com.conf
+    notify: reload nginx
+
+  - name: install php
+    yum:
+      name:
+        - php
+        - php-fpm
+        - php-mysql
+#       - php-mysqlnd
+# rhel8安装php-mysqlnd
+        - mariadb-devel
+
+  - name: run php service
+#      block:
+    service:
+      name: php-fpm
+      state: started
+
+  - name: run nginx service
+    service:
+      name: nginx
+      state: started
+#      - shell: /usr/sbin/nginx
+#        args:
+#          creates: /run/nginx.pid
+# 执行一个判断，当/run/nginx.pid存在时，就不再执行/usr/sbin/nginx
+

@@ -1,0 +1,80 @@
+- name: mkdir /var/lib/kube-proxy
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+  loop:
+    - /var/lib/kube-proxy
+
+- name: copy kube-proxy-csr.json / kube-proxy.service / kube-proxy.yaml to all nodes
+  template:
+    src: "kubernetes/{{ item.cfsrc }}.j2"
+    dest: "{{ item.cfdest }}"
+  loop:
+    - { cfsrc: 'kube-proxy.service', cfdest: '/usr/lib/systemd/system/kube-proxy.service' }
+    - { cfsrc: 'kube-proxy.yaml', cfdest: '/opt/kubernetes/cfg/kube-proxy.yaml' }
+    - { cfsrc: 'kube-proxy-csr.json', cfdest: '{{ kuberPath }}/kube-proxy-csr.json' }
+#  notify: restart etcd
+################################################################
+
+- name:
+  block:
+    - name: cfssl gencert -ca=ssl/ca.pem -ca-key=ssl/ca-key.pem -config=ca-config.json -profile=kubernetes kube-proxy-csr.json | cfssljson -bare ssl/kube-proxy
+      shell: "cfssl gencert -ca=ssl/ca.pem -ca-key=ssl/ca-key.pem -config=ca-config.json -profile=kubernetes kube-proxy-csr.json | cfssljson -bare ssl/kube-proxy"
+      args:
+        chdir: "{{ kuberPath }}"
+
+    - name: Copy {{ kuberPath }}/ssl/kube-proxy*.pem to all nodes
+      shell: "for i in {{ allList }};do rsync -az {{ kuberPath }}/ssl/kube-proxy*.pem $i:{{ kuberPath }}/ssl;done"
+# 以上生成的一对kube-proxy.pem文件copy到所有worker节点
+#######################################################################
+#    - name: kubectl -n kube-system create serviceaccount kube-proxy
+#      shell: kubectl -n kube-system create serviceaccount kube-proxy
+#
+#    - name: kubectl create clusterrolebinding system:kube-proxy --clusterrole system:node-proxier --serviceaccount kube-system:kube-proxy
+#      shell: kubectl create clusterrolebinding system:kube-proxy --clusterrole system:node-proxier --serviceaccount kube-system:kube-proxy
+    - name: kubectl config kube-proxy set-cluster kubernetes
+      shell: "kubectl config set-cluster kubernetes \
+     --certificate-authority={{ kuberPath }}/ssl/ca.pem \
+     --embed-certs=true --server={{ httpskvip }} \
+     --kubeconfig={{ kuberPath }}/cfg/kube-proxy.kubeconfig"
+
+    - name: kubectl config set-credentials kube-proxy
+      shell: "kubectl config set-credentials kube-proxy \
+      --client-certificate={{ kuberPath }}/ssl/kube-proxy.pem \
+      --client-key={{ kuberPath }}/ssl/kube-proxy-key.pem \
+      --embed-certs=true \
+      --kubeconfig={{ kuberPath }}/cfg/kube-proxy.kubeconfig"
+
+#    - name: kubectl config set-credentials kube-proxy
+#      shell: "SECRET=$(kubectl -n kube-system get sa/kube-proxy \
+#    --output=jsonpath='{.secrets[0].name}') && \
+#    JWT_TOKEN=$(kubectl -n kube-system get secret/$SECRET \
+#    --output=jsonpath='{.data.token}' | base64 -d) && \
+#    kubectl config set-credentials kubernetes \
+#    --token=${JWT_TOKEN} \
+#    --kubeconfig={{ kuberPath }}/cfg/kube-proxy.kubeconfig"
+
+    - name: kubectl config kube-proxy set-context default
+      shell: "kubectl config set-context default \
+      --cluster=kubernetes --user=kube-proxy \
+      --kubeconfig={{ kuberPath }}/cfg/kube-proxy.kubeconfig"
+
+    - name: kubectl config kube-proxy use-context default
+      shell: "kubectl config use-context default \
+      --kubeconfig={{ kuberPath }}/cfg/kube-proxy.kubeconfig"
+
+    - name: Copy {{ kuberPath }}/cfg/kube-proxy.kubeconfig to all nodes
+      shell: "for i in 4 6 7 8;do rsync -az {{ kuberPath }}/cfg/kube-proxy.kubeconfig c$i:{{ kuberPath }}/cfg;done"
+
+  when: ansible_hostname == 'c1'
+
+#################################################################
+
+- name: Start kube-proxy and daemon-reload
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "kube-proxy.service"
+

@@ -1,0 +1,7 @@
+- hosts: pxc
+  tasks:
+    - name: sync motd.j2 to /etc/motd
+      template:
+        src: motd.j2
+        dest: /etc/motd
+

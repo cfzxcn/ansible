@@ -1,0 +1,16 @@
+etcdAddr: 127.0.0.1,c1,c2,c3,192.168.1.61,192.168.1.62,192.168.1.63,192.168.1.81,192.168.1.82,192.168.1.83,k8s-master1,k8s-master2,k8s-master3
+
+kubeAddr: 127.0.0.1,c1,c2,c3,192.168.1.61,192.168.1.62,192.168.1.63,192.168.1.81,192.168.1.82,192.168.1.83,10.96.0.1,192.168.1.200,kubernetes,kubernetes.default,kubernetes.default.svc,kubernetes.default.svc.cluster,kubernetes.default.svc.cluster.local
+
+kuberPath: /opt/kubernetes
+cnName: kubernetes
+etcdAddrS: https://192.168.1.61:2379,https://192.168.1.62:2379,https://192.168.1.63:2379
+allList: c1 c2 c3 c4
+masterList: c1 c2 c3
+workerList: c4
+kvip: 192.168.1.200
+httpskvip: https://192.168.1.200:8443
+# 这个192.168.1.200:8443是keepalivedp中自定义的vip
+#kubeApiserver: https://192.168.1.61:6443
+
+installDir: /opt/harbor

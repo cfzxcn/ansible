@@ -1,0 +1,27 @@
+- name:
+  block:
+    - name: yum install keepalived
+      yum: name=keepalived
+    
+    - name: Copy keepalived.conf to /etc/keepalived/keepalived.conf
+      template: 
+        src: "{{ item }}.j2"
+        dest: "/etc/keepalived/{{ item }}"
+        backup: yes
+      loop:
+        - keepalived.conf
+      notify: restart keepalived
+    
+    - name: Copy  check_apiserver.sh/check_nginx.sh  to /etc/keepalived/check_apiserver.sh
+      template: 
+        src: "{{ item }}.j2"
+        dest: "/etc/keepalived/{{ item }}"
+        mode: +x
+      loop:
+        - check_apiserver.sh
+        - check_nginx.sh
+    
+    - name: systemctl enable --now keepalived 
+      service: name=keepalived state=restarted enabled=yes
+
+  when: ansible_hostname == 'c1' or ansible_hostname == 'c4' or ansible_hostname == 'c6'

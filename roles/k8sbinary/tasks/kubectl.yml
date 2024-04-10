@@ -1,0 +1,103 @@
+- name: mkdir /root/.kube -p
+  file: path="/root/.kube" state=directory recurse=yes
+
+- name:
+  block:
+    - name: Generate admin-csr.json
+      template:
+        src: "kubernetes/{{ item }}.j2"
+        dest: "{{ kuberPath }}/{{ item }}"
+      loop:
+        - admin-csr.json
+######################################################################
+# 部署kubectl
+    - name: cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes admin-csr.json | cfssljson -bare admin
+      shell: "cfssl gencert -ca=ssl/ca.pem -ca-key=ssl/ca-key.pem -config=ca-config.json -profile=kubernetes admin-csr.json | cfssljson -bare ssl/admin"
+      args:
+        chdir: "{{ kuberPath }}"
+
+    - name: Copy {{ kuberPath }}/ssl/admin*.pem to all nodes
+      shell: "for NODE in 4 6 7 8;do rsync -az {{ kuberPath }}/ssl/admin*.pem c$NODE:{{ kuberPath }}/ssl;done"
+#########################################################################
+#    - name: Generate {{ kuberPath }}/cfg/bootstrap.secret.yaml
+#      template: src=kubernetes/bootstrap.secret.yaml.j2 dest={{ kuberPath }}/cfg/bootstrap.secret.yaml
+#########################################################################
+# 部署kubectl，生成admin.kubeconfig配置文件
+    - name: kubectl config kubernetes-admin set-cluster kubernetes
+      shell: "kubectl config set-cluster kubernetes \
+      --certificate-authority={{ kuberPath }}/ssl/ca.pem \
+      --embed-certs=true --server={{ httpskvip }} \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+
+    - name: kubectl config set-credentials kubernetes-admin
+      shell: "kubectl config set-credentials kubernetes-admin \
+      --client-certificate={{ kuberPath }}/ssl/admin.pem \
+      --client-key={{ kuberPath }}/ssl/admin-key.pem \
+      --embed-certs=true \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+
+    - name: kubectl config set-context kubernetes-admin
+      shell: "kubectl config set-context kubernetes-admin@kubernetes \
+      --cluster=kubernetes --user=kubernetes-admin \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+ 
+    - name: kubectl config use-context kubernetes-admin
+      shell: "kubectl config use-context kubernetes-admin@kubernetes \
+      --kubeconfig={{ kuberPath }}/cfg/admin.kubeconfig"
+
+#########################################################################
+#    - name: copy {{ ansible_hostname}} {{ kuberPath }}/cfg/admin.kubeconfig to /root/.admin.kubeconfig
+#      copy:
+#        remote_src: yes
+#        src: "{{ kuberPath }}/cfg/admin.kubeconfig"
+#        dest: /root/.admin.kubeconfig
+#    - name: kubectl create -f {{ kuberPath }}/cfg/bootstrap.secret.yaml
+#      shell: "kubectl create -f {{ kuberPath }}/cfg/bootstrap.secret.yaml"
+#    - name: copy {{ kuberPath }}/admin.kubeconfig /root/.admin.kubeconfig
+#      shell: "cp {{ kuberPath }}/admin.kubeconfig /root/.admin.kubeconfig"
+# 角色绑定
+#    - name: kubectl create clusterrolebinding admin
+#      shell: "kubectl create clusterrolebinding kube-apiserver:kubelet-apis \
+#      --clusterrole=system:kubelet-api-admin --user kubernetes \
+#      --kubeconfig=/root/.admin.kubeconfig"
+    - name: Copy {{ kuberPath }}/cfg/admin.kubeconfig  to all nodes
+      shell: "for i in 4 6 7 8;do rsync -az {{ kuberPath }}/cfg/admin.kubeconfig c$i:{{ kuberPath }}/cfg/;done"
+
+    - name: Generate {{ kuberPath }}/admin.kubeconfig  to all nodes's /root/.kube/config
+      shell: "for i in 1 4 6 7 8;do rsync -az {{ kuberPath }}/cfg/admin.kubeconfig c$i:/root/.kube/config;done"
+
+  when: ansible_hostname == 'c1'
+
+##########################################################################
+# 安装kubectl的自动补全
+- name: source /usr/share/bash-completion/bash_completion
+  shell: "source /usr/share/bash-completion/bash_completion"
+  args:
+    executable: /bin/bash
+
+- name: source <(kubectl completion bash)
+  shell: "source <(kubectl completion bash)"
+  args:
+    executable: /bin/bash
+
+- name: kubectl completion bash > ~/.kube/completion.bash.inc
+  shell: "kubectl completion bash > ~/.kube/completion.bash.inc"
+  args:
+    executable: /bin/bash
+
+- name: source /root/.kube/completion.bash.inc
+  shell: "source /root/.kube/completion.bash.inc"
+  args:
+    executable: /bin/bash
+
+- name: source $HOME/.bash_profile
+  shell: "source $HOME/.bash_profile"
+  args:
+    executable: /bin/bash
+###########################################################################
+
+
+
+
+
+

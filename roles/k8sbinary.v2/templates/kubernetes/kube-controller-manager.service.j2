@@ -1,0 +1,36 @@
+[Unit]
+Description=Kubernetes Controller Manager
+Documentation=https://github.com/kubernetes/kubernetes
+# After=network.target
+
+[Service]
+EnvironmentFile=-{{ kuberPath }}/cfg/kube-controller-manager.conf
+ExecStart={{ kuberPath }}/bin/kube-controller-manager $KUBE_CONTROLLER_MANAGER_OPTS
+#      --v=2 \
+#      --logtostderr=true \
+#      --address=127.0.0.1 \
+#      --root-ca-file={{ kuberPath }}/ssl/ca.pem \
+#      --cluster-signing-cert-file={{ kuberPath }}/ssl/ca.pem \
+#      --cluster-signing-key-file={{ kuberPath }}/ssl/ca-key.pem \
+#      --service-account-private-key-file={{ kuberPath }}/ssl/sa.key \
+#      --kubeconfig={{ kuberPath }}/cfg/kube-controller-manager.kubeconfig \
+#      --leader-elect=true \
+#      --use-service-account-credentials=true \
+#      --node-monitor-grace-period=40s \
+#      --node-monitor-period=5s \
+#      --pod-eviction-timeout=2m0s \
+#      --controllers=*,bootstrapsigner,tokencleaner \
+#      --allocate-node-cidrs=true \
+#      --service-cluster-ip-range=10.96.0.0/12 \
+#      --cluster-cidr=172.16.0.0/12 \
+#      --node-cidr-mask-size-ipv4=24 \
+#      --node-cidr-mask-size-ipv6=64 \
+#      --requestheader-client-ca-file={{ kuberPath }}/ssl/front-proxy-ca.pem \
+#      --feature-gates=IPv6DualStack=true
+##      --node-cidr-mask-size=24
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

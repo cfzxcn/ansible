@@ -1,0 +1,67 @@
+- name: Create user "{{ placementName }}" with passwd in db, "{{ placementName }}" db privileges and 'WITH GRANT OPTION' in host
+  mysql_user:
+    login_user: root
+    login_password: "{{ dbRootPasswd }}"
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    state: present
+    name: "{{ placementName }}"
+    password: "{{ dbSpasswd }}"
+    host: "{{ item }}"
+    priv:
+      'placement.*': 'ALL,GRANT'
+#      '"{{ placementName }}".*': 'ALL,GRANT'
+  with_items:
+    - localhost
+    - "%"
+
+- name: Create "{{ placementName }}" user 
+  shell: source /etc/openrc.sh && openstack user list | grep "{{ placementName }}" || openstack user create --domain default --password {{ servicePasswd }} "{{ placementName }}"
+
+- name: openstack role add --project service --user "{{ placementName }}" admin
+  shell: source /etc/openrc.sh && openstack service list | grep "{{ placementName }}" || openstack role add --project service --user "{{ placementName }}" admin
+
+- name: openstack service create --name "{{ placementName }}" --description "Placement API" "{{ placementName }}"
+  shell: source /etc/openrc.sh && openstack service list | grep "{{ placementName }}" || openstack service create --name "{{ placementName }}" --description 'Placement API' "{{ placementName }}"
+
+- name: Create endpoint on http://controller:{{ placementPort }}
+  shell: source /etc/openrc.sh && if ! openstack endpoint list | grep "{{ placementName }}";then openstack endpoint create --region RegionOne "{{ placementName }}" public http://controller:{{ placementPort }} && openstack endpoint create --region RegionOne "{{ placementName }}" internal http://controller:{{ placementPort }} && openstack endpoint create --region RegionOne "{{ placementName }}" admin http://controller:{{ placementPort }};fi
+
+- name: Yum Install "{{ placementName }}"
+  yum: "name=openstack-{{ placementName }}-api"
+  tags: install"{{ placementName }}"
+
+- name: Backup {{ placementName }} conf
+  shell: if [ ! -f /etc/"{{ placementName }}"/"{{ placementName }}".conf.original ];then cd /etc/"{{ placementName }}"/ && mv "{{ placementName }}".conf "{{ placementName }}".conf.original && egrep -v '^(#|$)' "{{ placementName }}".conf.original > "{{ placementName }}".conf && chown root:"{{ placementName }}" "{{ placementName }}".conf;fi
+
+- name: Modify "{{ placementName }}" conf
+  shell: >
+    openstack-config --set /etc/"{{ placementName }}"/"{{ placementName }}".conf api auth_strategy keystone &&
+    openstack-config --set /etc/"{{ placementName }}"/"{{ placementName }}".conf "{{ placementName }}"_database connection mysql+pymysql://"{{ placementName }}":"{{ dbSpasswd }}"@controller:"{{ dbPort }}"/"{{ placementName }}" &&
+    openstack-config --set /etc/"{{ placementName }}"/"{{ placementName }}".conf keystone_authtoken auth_url http://controller:5000/v3 &&
+    openstack-config --set /etc/"{{ placementName }}"/"{{ placementName }}".conf keystone_authtoken memcached_servers controller:11211 &&
+    openstack-config --set /etc/"{{ placementName }}"/"{{ placementName }}".conf keystone_authtoken auth_type password &&
+    openstack-config --set /etc/"{{ placementName }}"/"{{ placementName }}".conf keystone_authtoken project_domain_name Default &&
+    openstack-config --set /etc/"{{ placementName }}"/"{{ placementName }}".conf keystone_authtoken user_domain_name Default &&
+    openstack-config --set /etc/"{{ placementName }}"/"{{ placementName }}".conf keystone_authtoken project_name service &&
+    openstack-config --set /etc/"{{ placementName }}"/"{{ placementName }}".conf keystone_authtoken username "{{ placementName }}" &&
+    openstack-config --set /etc/"{{ placementName }}"/"{{ placementName }}".conf keystone_authtoken password "{{ servicePasswd }}"
+
+- name: "{{ placementName }} initialize"
+  shell: su -s /bin/sh -c "{{ placementName }}-manage db sync" "{{ placementName }}"
+
+- name: Modity /etc/httpd/conf.d/00-placement-api.conf
+  ansible.builtin.lineinfile:
+    path: /etc/httpd/conf.d/00-placement-api.conf
+    backup: true
+    insertafter: "#SSLCertificateKeyFile(.*)"
+    line: '{{ item }}'
+  with_items:
+    - '<Directory /usr/bin>'
+    - '  <IfVersion >= 2.4>'
+    - '    Require all granted'
+    - '  </IfVersion>'
+    - '  <IfVersion < 2.4>'
+    - '    Order allow,deny'
+    - '    Allow from all'
+    - '  </IfVersion>'
+    - '</Directory>'

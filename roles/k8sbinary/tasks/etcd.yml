@@ -1,0 +1,70 @@
+- name:
+  block:
+    - name: Copy etcd-csr.json  etcd-ca-csr.json
+      template:
+        src: "{{ item }}.j2"
+        dest: "{{ kuberPath }}/{{ item }}"
+      loop:
+        - etcd-csr.json
+        - etcd-ca-csr.json
+
+##########################################  
+
+    - name: cfssl gencert -initca etcd-ca-csr.json | cfssljson -bare ssl/etcd-ca
+      shell: "cfssl gencert -initca etcd-ca-csr.json | cfssljson -bare ssl/etcd-ca"
+      args:
+        chdir: "{{ kuberPath }}/"
+
+# 生成etcd证书
+    - name: cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname={{ etcdAddr }} -profile={{ CNvalue }} etcd-csr.json | cfssljson -bare etcd
+      shell: "cfssl gencert -ca=ssl/etcd-ca.pem -ca-key=ssl/etcd-ca-key.pem -config=ca-config.json -hostname={{ etcdAddr }} -profile={{ CNvalue }} etcd-csr.json | cfssljson -bare ssl/etcd"
+      args:
+        chdir: "{{ kuberPath }}/"
+###########################################
+
+    - name: Copy {{ kuberPath }}/ssl/etcd*.pem to other master node
+      shell: "for NODE in c4 c6;do rsync -az {{ kuberPath }}/ssl/etcd*.pem $NODE:{{ kuberPath }}/ssl;done"
+
+  when: ansible_hostname == 'c1'
+
+##########################################
+- name:
+  block:
+    - name: mkdir /var/lib/etcd/default.etcd -p
+      file:
+        path: "{{ item }}"
+        state: directory
+        recurse: yes
+      loop:
+        - /var/lib/etcd/default.etcd
+
+    - name: Copy etcdctl etcd  to {{ kuberPath }}/bin/
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ kuberPath }}/{{ item.dest }}"
+        mode: +x
+      loop:
+        - { src: 'etcd', dest: 'bin' }
+        - { src: 'etcdctl', dest: 'bin' }
+# etcd和etcdctl这两个文件是拷贝的etcd-v3.5.10-linux-amd64.tar.gz中解压出来的,非master节点也要复制，因为flannel.yml中要用到
+
+    - name: Generate etcd.service and etcd.conf
+      template:
+        src: "{{ item.cfsrc }}.j2"
+        dest: "{{ item.cfdest }}"
+      loop:
+        - { cfsrc: 'etcd.service', cfdest: '/usr/lib/systemd/system/etcd.service' }
+#        - { cfsrc: 'etcd.conf', cfdest: '{{ kuberPath }}/cfg/etcd.conf' }
+        - { cfsrc: 'etcd.config.yml', cfdest: '{{ kuberPath }}/cfg/etcd.config.yml' }
+    #    force: yes
+    #  notify: restart etcd
+
+    - name: Start etcd and daemon-reload
+      ansible.builtin.systemd:
+        state: restarted
+        enabled: true
+        daemon_reload: true
+        name: "etcd.service"
+    
+  when: ansible_hostname == 'c1' or ansible_hostname == 'c4' or ansible_hostname == 'c6'
+

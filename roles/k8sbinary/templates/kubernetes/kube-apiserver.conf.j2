@@ -1,0 +1,37 @@
+KUBE_APISERVER_OPTS="--enable-admission-plugins=NamespaceLifecycle,NodeRestriction,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota \
+--anonymous-auth=false \
+--bind-address={{ ansible_default_ipv4.address }} \
+--secure-port=6443 \
+--advertise-address={{ ansible_default_ipv4.address }} \
+--insecure-port=0 \
+--authorization-mode=RBAC,Node \
+--runtime-config=api/all=true \
+--enable-bootstrap-token-auth \
+--service-cluster-ip-range={{ serviceIPRange }} \
+--token-auth-file={{ kuberPath }}/ssl/token.csv \
+--service-node-port-range=30000-32767 \
+--tls-cert-file={{ kuberPath }}/ssl/apiserver.pem  \
+--tls-private-key-file={{ kuberPath }}/ssl/apiserver-key.pem \
+--client-ca-file={{ kuberPath }}/ssl/ca.pem \
+--kubelet-client-certificate={{ kuberPath }}/ssl/apiserver.pem \
+--kubelet-client-key={{ kuberPath }}/ssl/apiserver-key.pem \
+--service-account-key-file={{ kuberPath }}/ssl/ca-key.pem \
+--service-account-signing-key-file={{ kuberPath }}/ssl/ca-key.pem \
+--service-account-issuer=api \
+--etcd-cafile={{ kuberPath }}/ssl/ca.pem \
+--etcd-certfile={{ kuberPath }}/ssl/etcd.pem \
+--etcd-keyfile={{ kuberPath }}/ssl/etcd-key.pem \
+--etcd-servers={{ etcdAddrS }} \
+--enable-swagger-ui=true \
+--allow-privileged=true \
+--apiserver-count=3 \
+--audit-log-maxage=30 \
+--audit-log-maxbackup=3 \
+--audit-log-maxsize=100 \
+--audit-log-path={{ kuberPath }}/logs/kube-apiserver-audit.log \
+--event-ttl=1h \
+--alsologtostderr=true \
+--logtostderr=false \
+--log-dir={{ kuberPath }}/logs \
+--v=4"
+

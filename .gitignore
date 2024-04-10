@@ -1,0 +1,25 @@
+*.img
+*.rpm
+*.zip
+*.tar.bz2
+*.tar.gz
+*.tar.xz
+*.tar
+*.tgz
+*.mp4
+
+./roles/mongodbrepl/files/
+# 可以生效，连files目录都不会上传
+roles/mongodbrepl/files/
+roles/mongodbrepl/files/*
+
+roles/k8sbinary/files/kubernetes/
+# 可以生效，连kubernetes目录都不会上传
+roles/k8sbinary/files/kubernetes/*
+
+./roles/k8sbinary/files/cfssl_1.6.4
+./roles/k8sbinary/files/etcdctl
+./roles/k8sbinary/files/etcd
+./roles/k8sbinary/files/flanneld
+./roles/k8sy/files/helm
+

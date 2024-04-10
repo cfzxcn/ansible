@@ -1,0 +1,40 @@
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+#yum
+192.168.1.204 ub
+192.168.1.220 ub22
+192.168.1.100 cfvip
+192.168.1.110 kylin
+# openstack
+192.168.1.30 controller
+192.168.1.32 compute2
+
+192.168.1.100 cfvip
+192.168.1.108 k8svip
+
+# pxc
+#192.168.1.21 controller.st.cn controller
+192.168.1.22 pxc2.st.cn pxc2 
+192.168.1.23 pxc3.st.cn pxc3
+
+# pacemaker and openstack
+30.0.0.21 ha1
+30.0.0.22 ha2
+30.0.0.23 ha3
+
+30.0.0.31 compute1
+#30.0.0.32 compute2
+30.0.0.33 compute3
+30.0.0.34 compute4
+
+# ceph and k8s and k8sy
+192.168.1.61 c1 
+192.168.1.62 c2
+192.168.1.63 c3
+192.168.1.64 c4
+192.168.1.65 c5
+192.168.1.66 c6
+192.168.1.67 c7
+192.168.1.68 c8
+192.168.1.69 c9
+

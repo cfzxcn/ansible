@@ -1,0 +1,14 @@
+chkPort=$1
+if [ -n "$chkPort" ];then
+# -n作用：如果"$chkPort"非空，返回0（ture），即执行else前的指令
+    portProcess=`ss -lt | grep $chkPort | wc -l`
+# 统计28443端口也就是$1的数量，如果数量为0，则exit 1
+    if [ $portProcess -eq 0 ];then
+        echo "port $chkPort is not used，nginx-dokcker is down!!"
+	systemctl stop keepalived
+        exit 1
+    fi
+else
+    echo "port can't be empty!端口不能为空！"
+fi
+

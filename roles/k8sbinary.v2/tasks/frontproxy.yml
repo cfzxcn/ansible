@@ -1,0 +1,25 @@
+- name:
+  block:
+    - name: copy front-proxy-client-csr.json | front-proxy-ca-csr.json to c1
+      template:
+        src: "{{ item.cfsrc }}.j2"
+        dest: "{{ item.cfdest }}"
+      loop:
+        - { cfsrc: 'front-proxy-client-csr.json', cfdest: '{{ kuberPath }}/front-proxy-client-csr.json' }
+        - { cfsrc: 'front-proxy-ca-csr.json', cfdest: '{{ kuberPath }}/front-proxy-ca-csr.json' }
+
+    - name: cfssl gencert -initca front-proxy-ca-csr.json | cfssljson -bare ssl/front-proxy-ca
+      shell: "cfssl gencert -initca front-proxy-ca-csr.json | cfssljson -bare ssl/front-proxy-ca"      
+      args:
+        chdir: "{{ kuberPath }}"
+
+    - name: cfssl gencert -ca=ssl/front-proxy-ca.pem -ca-key=ssl/front-proxy-ca-key.pem -config=ca-config.json -profile=kubernetes front-proxy-client-csr.json | cfssljson -bare ssl/front-proxy-client
+      shell: "cfssl gencert -ca=ssl/front-proxy-ca.pem -ca-key=ssl/front-proxy-ca-key.pem -config=ca-config.json -profile=kubernetes front-proxy-client-csr.json | cfssljson -bare ssl/front-proxy-client"
+      args:
+        chdir: "{{ kuberPath }}"
+
+    - name: Copy {{ kuberPath }}/ssl/front-proxy*.pem to all nodes
+      shell: "for i in {{ allList }};do rsync -az {{ kuberPath }}/ssl/front-proxy*.pem $i:{{ kuberPath }}/ssl;done"
+
+  when: ansible_hostname == 'c1'
+

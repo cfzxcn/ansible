@@ -1,0 +1,126 @@
+- name: Create replicated pools
+  ignore_errors: true
+  block:
+    - name: ceph osd pool create volumes 256 && ceph osd pool application enable volumes rbd
+      shell: 'ceph osd pool create volumes 256 && ceph osd pool application enable volumes rbd'
+    
+    - name: ceph osd pool create vms 256 && ceph osd pool application enable vms rbd
+      shell: 'ceph osd pool create vms 256 && ceph osd pool application enable vms rbd'
+
+    - name: client.cinder authentication
+      shell: "ceph auth get-or-create client.cinder mon 'profile rbd' osd 'profile rbd pool=volumes,profile rbd pool=vms' > /etc/ceph/ceph.client.cinder.keyring"
+
+    - name: rbd create volumes/disk1 --size 25G && rbd create vms/disk2 --size 20G
+      shell: 'rbd create volumes/disk1 --size 25G && rbd create vms/disk2 --size 20G'
+
+    - name: Disable volumes/disk1 and vms/disk2 exclusive-lock object-map fast-diff deep-flatten
+      shell: 'rbd feature disable volumes/disk1 exclusive-lock object-map fast-diff deep-flatten && rbd feature disable vms/disk2 exclusive-lock object-map fast-diff deep-flatten'
+
+    - name: copy /etc/ceph/ceph.client.cinder.keyring to other node
+      shell: 'for i in compute1 pxc1 pxc2 c1 c4 c6 c7 c8;do scp /etc/ceph/ceph.client.cinder.keyring $i:/etc/ceph;done'
+#    - name: map rbd
+#      lineinfile:
+#        dest: /etc/ceph/rbdmap
+#        line: "volumes/disk1 id=cinder,keyring=/etc/ceph/ceph.client.cinder.keyring"
+#        backup: true
+
+    - name: chown cinder:cinder /etc/ceph/ceph.client.cinder.keyring
+      file: 
+        path: /etc/ceph/ceph.client.cinder.keyring
+        owner: cinder
+        group: cinder
+#  when: ansible_fqdn == 'controller' or ansible_fqdn == 'compute1'
+    - name: Generate uuid
+      shell: "uuidgen > /etc/ceph/uuid.txt"
+
+    - name: Generate /etc/ceph/ceph.xml
+      shell:
+        cmd: |
+          echo -e "\n" > /etc/ceph/ceph.xml
+          cat > /etc/ceph/ceph.xml <<EOF
+          <secret ephemeral='no' private='no'>
+          <uuid>$(cat /etc/ceph/uuid.txt)</uuid>
+          <usage type='ceph'>
+          <name>client.cinder secret</name>
+          </usage>
+          </secret>
+          EOF
+#    - name: copy /etc/ceph/ceph.xml to other compute node
+#      shell: 'for i in 2 3 4;do scp /etc/ceph/ceph.xml compute$i:/etc/ceph;done'
+  when: ansible_fqdn == 'compute1'
+
+- name: compute set cinder and nova ceph
+  ignore_errors: true
+  block:
+    - name: virsh secret-define --file /etc/ceph/ceph.xml
+      shell: "virsh secret-define --file /etc/ceph/ceph.xml"
+
+    - name: virsh secret-set-value --secret $(cat /etc/ceph/uuid.txt) --base64 $(grep key /etc/ceph/ceph.client.cinder.keyring | awk -F ' ' '{ print $3 }')
+      shell: "virsh secret-set-value --secret $(cat /etc/ceph/uuid.txt) --base64 $(grep key /etc/ceph/ceph.client.cinder.keyring | awk -F ' ' '{ print $3 }')"
+
+    - name: Babkup {{ cinderConfPath }}
+      shell: "cp -a {{ cinderConfPath }}{,.`date +%F.%T`}"
+
+    - name: Modify {{ cinderConfPath }}
+      shell: >
+        openstack-config --set {{ cinderConfPath }} DEFAULT enabled_backends ceph,lvm &&
+        openstack-config --set {{ cinderConfPath }} ceph volume_driver cinder.volume.drivers.rbd.RBDDriver &&
+        openstack-config --set {{ cinderConfPath }} ceph volume_backend_name ceph &&
+        openstack-config --set {{ cinderConfPath }} ceph rbd_pool volumes &&
+        openstack-config --set {{ cinderConfPath }} ceph rbd_ceph_conf /etc/ceph/ceph.conf &&
+        openstack-config --set {{ cinderConfPath }} ceph rbd_flatten_volume_from_snapshot false &&
+        openstack-config --set {{ cinderConfPath }} ceph rbd_max_clone_depth 5 &&
+        openstack-config --set {{ cinderConfPath }} ceph rbd_store_chunk_size 4 &&
+        openstack-config --set {{ cinderConfPath }} ceph rados_connect_timeout -1 &&
+        openstack-config --set {{ cinderConfPath }} ceph glance_api_version 2 &&
+        openstack-config --set {{ cinderConfPath }} ceph rbd_user cinder &&
+        openstack-config --set {{ cinderConfPath }} ceph rbd_secret_uuid $(cat /etc/ceph/uuid.txt)
+
+    - name: Babkup {{ novaConfPath }}
+      shell: "cp -a {{ novaConfPath }}{,.`date +%F.%T`}"
+
+    - name: Modify {{ novaConfPath }}
+      shell: >
+#       "openstack-config --set {{ novaConfPath }} DEFAULT live_migration_flag VIR_MIGRATE_UNDEFINE_SOURCE,VIR_MIGRATE_PEER2PEER,VIR_MIGRATE_LIVE,VIR_MIGRATE_PERSIST_DEST,VIR_MIGRA TE_TUNNELLED" &&
+#        "openstack-config --set {{ novaConfPath }} libvirt 'inject_partition -2'" &&
+        openstack-config --set {{ novaConfPath }} libvirt images_type rbd &&
+        openstack-config --set {{ novaConfPath }} libvirt images_rbd_pool vms &&
+        openstack-config --set {{ novaConfPath }} libvirt images_rbd_ceph_conf /etc/ceph/ceph.conf &&
+#        openstack-config --set {{ novaConfPath }} libvirt disk_cachemodes network=writeback &&
+        openstack-config --set {{ novaConfPath }} libvirt rbd_user cinder &&
+        openstack-config --set {{ novaConfPath }} libvirt rbd_secret_uuid $(cat /etc/ceph/uuid.txt)
+
+    - name: computes restart cinder and nova
+      shell: "openstack-service restart cinder && openstack-service restart nova"
+  when: ansible_fqdn == 'compute1' 
+#  when: ansible_fqdn == 'compute1' or ansible_fqdn == 'compute2'
+
+- name: controller set cinder and nova ceph
+  ignore_errors: true
+  block:
+    - name: cinder type-create ceph
+      shell: "cinder type-list | grep ceph &>/dev/null || cinder type-create ceph"
+
+    - name: cinder type-key ceph set volume_backend_name=ceph
+      shell: "cinder extra-specs-list | grep ceph &>/dev/null || cinder type-key ceph set volume_backend_name=ceph"
+#    - name: Append 'default_volume_type = ceph,lvm' to {{ cinderConfPath }}
+#      lineinfile:
+#        path: "{{ cinderConfPath }}"
+#        insertafter="[DEFAULT]"
+#        line='default_volume_type = ceph,lvm'
+#        backup=true
+#      notify: restart cinder
+    - name: controller restart cinder and nova
+      shell: "openstack-service restart cinder && openstack-service restart nova"
+  when: ansible_fqdn == 'controller'
+
+
+
+
+
+
+
+
+
+
+

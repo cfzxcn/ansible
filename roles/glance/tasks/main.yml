@@ -1,0 +1,69 @@
+- name:
+  block:
+    - name: Create user glance with passwd in db, glance db privileges and 'WITH GRANT OPTION' in host
+      mysql_user:
+        login_user: cf
+        login_password: cf
+        login_host: "{{ ansible_default_ipv4.address }}"    
+        state: present
+        name: glance
+        password: "{{ servicePasswd }}"
+        host: "{{ item }}"
+        priv:
+          'glance.*': 'ALL,GRANT'
+      with_items:
+        - localhost
+        - "%"
+    
+    - name: Create glance user 
+      shell: source /etc/openrc.sh && openstack user list | grep glance || openstack user create --domain default --password cf glance
+    
+    - name: openstack role add --project service --user glance admin
+      shell: source /etc/openrc.sh && openstack service list | grep glance || openstack role add --project service --user glance admin
+    
+    - name: openstack service create --name glance --description "OpenStack Image" image
+      shell: source /etc/openrc.sh && openstack service list | grep glance || openstack service create --name glance --description "OpenStack Image" image
+    
+    - name: openstack endpoint create --region RegionOne image public http://controller:9292
+      shell: source /etc/openrc.sh && if ! openstack endpoint list | grep image;then openstack endpoint create --region RegionOne image public http://cfvip:9292 && openstack endpoint create --region RegionOne image internal http://cfvip:9292 && openstack endpoint create --region RegionOne image admin http://cfvip:9292;fi
+
+  when: role == 'bootstrap'    
+
+- name: Yum Install Glance
+  yum: name=openstack-glance
+
+- name: Backup glance conf
+  shell: "if [ ! -f /etc/glance/glance-api.conf.original ];then cd /etc/glance/ && mv glance-api.conf glance-api.conf.original && egrep -v '^(#|$)' glance-api.conf.original > glance-api.conf && chown root:glance glance-api.conf;fi"
+
+- name: Modify glance conf
+  shell: >
+    openstack-config --set /etc/glance/glance-api.conf database connection mysql+pymysql://glance:cf@cfvip:{{ dbPort }}/glance &&
+    openstack-config --set /etc/glance/glance-api.conf glance_store stores file,http &&
+    openstack-config --set /etc/glance/glance-api.conf glance_store default_store file &&
+    openstack-config --set /etc/glance/glance-api.conf glance_store filesystem_store_datadir /var/lib/glance/images/ &&
+    openstack-config --set /etc/glance/glance-api.conf keystone_authtoken www_authenticate_uri http://cfvip:5000 &&
+    openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_url http://cfvip:5000 &&
+    openstack-config --set /etc/glance/glance-api.conf keystone_authtoken memcached_servers ha1:11211,ha2:11211,ha3:11211 &&
+    openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_type password &&
+    openstack-config --set /etc/glance/glance-api.conf keystone_authtoken project_domain_name Default &&
+    openstack-config --set /etc/glance/glance-api.conf keystone_authtoken user_domain_name Default &&
+    openstack-config --set /etc/glance/glance-api.conf keystone_authtoken project_name service &&
+    openstack-config --set /etc/glance/glance-api.conf keystone_authtoken username glance &&
+    openstack-config --set /etc/glance/glance-api.conf keystone_authtoken password cf &&
+    openstack-config --set /etc/glance/glance-api.conf paste_deploy flavor keystone
+
+- name: glance initialize
+  shell: su -s /bin/sh -c "glance-manage db_sync" glance 
+  when: role == 'bootstrap'    
+
+- name: systemctl enable --now openstack-glance-api.service
+  service: name="openstack-glance-api.service" state=started enabled=yes
+
+- name: Copy cirros to client
+  copy: src=cirros-0.6.2-x86_64-disk.img dest=/opt
+  when: role == 'bootstrap'    
+
+- name: Create cirros-0.6.2-x86_64
+  shell: source /etc/openrc.sh;openstack image list | grep cirros || openstack image create "cirros-0.6.2-x86_64" --file "/opt/cirros-0.6.2-x86_64-disk.img" --disk-format qcow2 --container-format bare --public && openstack image set cirros-0.6.2-x86_64 --public
+  when: role == 'bootstrap'    
+

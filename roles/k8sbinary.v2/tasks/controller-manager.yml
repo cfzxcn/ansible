@@ -1,0 +1,71 @@
+- name:
+  block:
+    - name: Generate kube-controller-manager-csr.json
+      template:
+        src: "kubernetes/{{ item }}.j2"
+        dest: "{{ kuberPath }}/{{ item }}"
+      loop:
+        - kube-controller-manager-csr.json
+
+#########################################################################
+# 部署kube-controller-manager
+    - name: cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes kube-controller-manager-csr.json | cfssljson -bare kube-controller-manager
+      shell: "cfssl gencert -ca=ssl/ca.pem -ca-key=ssl/ca-key.pem -config=ca-config.json -profile=kubernetes kube-controller-manager-csr.json | cfssljson -bare ssl/kube-controller-manager"
+      args:
+        chdir: "{{ kuberPath }}"
+
+    - name: Copy {{ kuberPath }}/ssl/kube-controller-manager*.pem to other master node
+      shell: "for NODE in 4 6;do rsync -az {{ kuberPath }}/ssl/kube-controller-manager*.pem c$NODE:{{ kuberPath }}/ssl;done"
+
+#########################################################################
+
+    - name: kubectl config kube-controller-manager set-cluster kubernetes
+      shell: "kubectl config set-cluster kubernetes \
+     --certificate-authority={{ kuberPath }}/ssl/ca.pem \
+     --embed-certs=true \
+     --server={{ httpskvip }} \
+     --kubeconfig={{ kuberPath }}/cfg/kube-controller-manager.kubeconfig"
+
+    - name: kubectl config kube-controller-manager set-credentials
+      shell: "kubectl config set-credentials system:kube-controller-manager \
+    --client-certificate={{ kuberPath }}/ssl/kube-controller-manager.pem \
+    --client-key={{ kuberPath }}/ssl/kube-controller-manager-key.pem \
+    --embed-certs=true \
+    --kubeconfig={{ kuberPath }}/cfg/kube-controller-manager.kubeconfig"
+
+    - name: kubectl config kube-controller-manager set-context
+      shell: "kubectl config set-context system:kube-controller-manager \
+    --cluster=kubernetes \
+    --user=system:kube-controller-manager \
+    --kubeconfig={{ kuberPath }}/cfg/kube-controller-manager.kubeconfig"
+
+    - name: kubectl config kube-controller-manager use-context
+      shell: "kubectl config use-context system:kube-controller-manager \
+      --kubeconfig={{ kuberPath }}/cfg/kube-controller-manager.kubeconfig"
+
+    - name: Copy {{ kuberPath }}/cfg/kube-controller-manager.kubeconfig  to other master node
+      shell: "for i in 4 6;do rsync -az {{ kuberPath }}/cfg/kube-controller-manager.kubeconfig c$i:{{ kuberPath }}/cfg/;done"
+
+#########################################################################
+  when: ansible_hostname == 'c1'
+
+- name:
+  block:
+    - name: Copy kube-controller-manager
+      template:
+        src: "kubernetes/{{ item.cfsrc }}"
+        dest: "{{ item.cfdest }}"
+      loop:
+        - { cfsrc: 'kube-controller-manager.service.j2', cfdest: '/usr/lib/systemd/system/kube-controller-manager.service' }
+        - { cfsrc: 'kube-controller-manager.conf.j2', cfdest: '/opt/kubernetes/cfg/kube-controller-manager.conf' }
+#      notify: restart etcd
+
+    - name: Start kube-controller-manager and daemon-reload
+      ansible.builtin.systemd:
+        state: started
+        enabled: true
+        daemon_reload: true
+        name: "kube-controller-manager.service"
+
+  when: ansible_hostname == 'c1' or ansible_hostname == 'c4' or ansible_hostname == 'c6'
+

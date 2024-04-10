@@ -1,0 +1,15 @@
+- name: 切换到{{ installDir }}目录执行 docker compose down
+  shell:
+    cmd: docker compose down
+    chdir: "{{ installDir }}"
+
+- name: 删除所有 harbor容器
+  shell: "docker rm -f $(docker ps -a | grep goharbor | cut -d' ' -f1)"
+# 执行到此步有报错，但确实删除了要删除的容器，需以后手工测试下先
+- name: 删除所有 harbor images
+  shell: "docker rmi $(docker images goharbor/* -q)"
+
+- name: delete  {{ installDir }}
+  file: path="{{ installDir }}" state=absent
+
+

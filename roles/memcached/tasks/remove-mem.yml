@@ -1,0 +1,22 @@
+---
+- hosts: sql
+#  vars:
+#    - src_mysql: mysql-5.7.31-linux-glibc2.12-x86_64
+#    - BASEDIR: /usr/local/mysql
+#    - DATADIR: /var/lib/mysql
+
+  tasks:
+  - name: stop memcached service 
+    shell: systemctl stop memcached && systemctl disable memcached && systemctl daemon-reload
+
+  - name: yum remove memcached
+    yum: name=memcached state=absent
+
+  - name: delete memcached user 
+    user: name=memcached state=absent remove=yes
+
+  - name: delete memcached files and dir
+    file: path={{ item }} state=absent
+    with_items: 
+#      - "{{ BASEDIR }}"
+      - /etc/sysconfig/memcached

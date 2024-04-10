@@ -1,0 +1,4 @@
+#- include_tasks: key.yml
+- include_tasks: admin.yml
+#- include_tasks: dashboard.yml
+#- include_tasks: compute1.yml

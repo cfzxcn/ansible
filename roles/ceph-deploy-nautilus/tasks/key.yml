@@ -1,0 +1,32 @@
+#- name: Generate /etc/hosts
+#  copy: src="/root/playbook/roles/init/files/hosts" dest=/etc/hosts backup=yes
+
+#- name: deliver andy authorized_keys
+#  authorized_key:
+#    user: andy
+#    key: "{{ lookup('file', '/home/andy/.ssh/id_rsa.pub') }}"
+#  when: ansible_fqdn == 'controller'
+
+- name: Generate andy's ssh-keygen
+  shell: '[ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -q -N "" -f ~/.ssh/id_rsa'
+
+- name: ssh-copy-id to all ceph node
+#  shell: 'for i in controller c1 c4 c6 c7 c8;do sshpass -pcf ssh-copy-id -o strictHostkeychecking=no andy@$i;done'
+  shell: 'for i in 30 61 64 66 67 68;do sshpass -pcf ssh-copy-id -o strictHostkeychecking=no andy@192.168.1.$i;done'
+
+#- name: 添加EPEL仓库
+##  copy: src="/root/playbook/roles/php/files/epel.repo" dest=/etc/yum.repos.d/epel.repo
+#  copy: src="../../php/files/epel.repo" dest=/etc/yum.repos.d/epel.repo
+
+- name: yum install python-setuptools
+  yum: name="python-setuptools"
+
+#- name: To install the ceph release.asc key
+#  shell: rpm --import 'https://download.ceph.com/keys/release.asc'
+
+#- name: Add ceph repo
+#  copy: src='../../init/files/ceph.repo' dest=/etc/yum.repos.d
+
+#- name: yum install ceph-common
+#  yum: name='ceph-common' update_cache=yes
+

@@ -1,0 +1,8 @@
+---
+# handlers file for clickhouse
+- name: daemon-reload and restart clickhouse-server
+  ansible.builtin.systemd:
+    state: restarted
+    daemon_reload: true
+    name: clickhouse-server.service
+

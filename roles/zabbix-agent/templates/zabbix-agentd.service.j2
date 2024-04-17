@@ -1,0 +1,24 @@
+[Unit]
+Description=Zabbix Agentd-tar.gz
+After=syslog.target
+After=network.target
+
+[Service]
+Environment="CONFFILE={{ baseDir }}/conf/zabbix_agentd.conf"
+#EnvironmentFile=-/etc/sysconfig/zabbix-agentd
+#Type=simple
+Type=forking
+Restart=on-failure
+#PIDFile=/run/zabbix/zabbix_agentd.pid
+KillMode=control-group
+ExecStart={{ baseDir }}/sbin/zabbix_agentd -c $CONFFILE
+#ExecStop=/usr/bin/kill -SIGTERM $MAINPID
+ExecStop=/bin/sh -c '[ -n "$1" ] && kill -s TERM "$1"' -- "$MAINPID"
+RestartSec=10s
+User={{ softName }}
+Group={{ softName }}
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target
+

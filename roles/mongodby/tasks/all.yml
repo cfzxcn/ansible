@@ -1,0 +1,28 @@
+- name: mkdir  mongo dbPath and logPath
+  file:
+    path: "{ item }}"
+    state: directory
+    recurse: yes
+  loop:
+    - '/data/mongodb'
+    - '/var/log/mongodb'
+
+- name: Copy mongod to /usr/local/bin
+  copy:
+    src: "mongodb-linux-x86_64-rhel70-6.0.12/bin/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+#    mode: +x
+  loop:
+    - mongod
+
+#############################################################################
+
+#- name: Start systemd-modules-load.service and daemon-reload
+#  ansible.builtin.systemd:
+#    state: restarted
+#    enabled: true
+#    daemon_reload: true
+#    name: "systemd-modules-load.service"
+
+- name:
+  shell: "mongod --dbpath /data/mongodb --logpath /var/log/mongodb/mongodb.log --fork --bind_ip 0.0.0.0"

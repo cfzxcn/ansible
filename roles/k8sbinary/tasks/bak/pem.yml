@@ -1,0 +1,38 @@
+# 基于ca-csr.json生成CA证书
+- name:
+  block:
+#####################################################################
+##    - name: Copy {{ kuberPath }}/ssl/* to all nodes
+##      shell: "for i in {{ masterList }};do rsync -az {{ kuberPath }}/ssl/{etcd,server}*.pem $i:{{ kuberPath }}/ssl;done"
+## 以上生成的pem文件copy到所有节点      
+#########################################################################
+#    - name: cfssl gencert -initca front-proxy-ca-csr.json | cfssljson -bare front-proxy-ca
+#      shell: "cfssl gencert -initca front-proxy-ca-csr.json | cfssljson -bare front-proxy-ca"
+#      args:
+#        chdir: "{{ kuberPath }}/ssl"
+#
+#    - name: cfssl gencert -ca=front-proxy-ca.pem -ca-key=front-proxy-ca-key.pem -config=ca-config.json -profile=kubernetes front-proxy-client-csr.json | cfssljson -bare front-proxy-client
+#      shell: "cfssl gencert -ca=front-proxy-ca.pem -ca-key=front-proxy-ca-key.pem -config=kube-ca-config.json -profile=kubernetes front-proxy-client-csr.json | cfssljson -bare front-proxy-client"
+#      args:
+#        chdir: "{{ kuberPath }}/ssl"
+#
+##########################################################################
+#
+#    - name: openssl genrsa -out {{ kuberPath }}/ssl/sa.key 2048
+#      shell: openssl genrsa -out {{ kuberPath }}/ssl/sa.key 2048
+## 创建ServiceAccount Key
+#    - name: openssl rsa -in {{ kuberPath }}/ssl/sa.key -pubout -out {{ kuberPath }}/ssl/sa.pub
+#      shell: openssl rsa -in {{ kuberPath }}/ssl/sa.key -pubout -out {{ kuberPath }}/ssl/sa.pub
+
+#########################################################################
+
+    - name: Copy {{ kuberPath }}/ssl/{*pem,*csr,sa.key,sa.pub} to all master nodes
+      shell: "for NODE in c4 c6; do for FILE in $(ls /opt/kubernetes/ssl | grep -v 'json$'); do rsync -az {{ kuberPath }}/ssl/${FILE} $NODE:{{ kuberPath }}/ssl;done;done"
+#      shell: "for i in {{ masterList }};do rsync -az {{ kuberPath }}/ssl/*{apiserver,controller,scheduler,admin,ca,front}*.pem $i:{{ kuberPath }}/ssl;done"
+# 以上生成的三对kube*.pem文件copy到所有master节点
+
+#########################################################################
+
+  when: ansible_hostname == 'c1'
+
+

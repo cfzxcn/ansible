@@ -1,0 +1,6 @@
+#vars:
+#  - installDir: /opt/harbor
+
+
+- include_tasks: install-harbor.yml
+#- include_tasks: rmharbor.yml

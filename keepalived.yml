@@ -1,0 +1,11 @@
+---
+- hosts: allnode
+#  remote_user: andy
+  gather_facts: true
+  ignore_errors: true
+  vars_files:
+    - group_vars/main.yml
+
+  roles:
+    - role: keepalived-yum
+      tags: ["keepalived-yum"]

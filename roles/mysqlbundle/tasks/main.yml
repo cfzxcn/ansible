@@ -1,0 +1,52 @@
+#- name: remove old mariadb
+#  shell: rpm -e --nodeps mariadb-devel mariadb-libs
+- name: yum remove old-mariadb
+  shell: "/bin/bash -c 'rpm -qa | grep -i mariadb && (yum remove -y mariadb*;yum remove -y MariaDB*)'"
+
+- name: mv OpenStack-train.repo... to /tmp
+  shell: cd /etc/yum.repos.d/ && if [ -f CentOS-OpenStack-train.repo ];then mv CentOS-QEMU-EV.repo CentOS-Ceph-Nautilus.repo CentOS-NFS-Ganesha-28.repo CentOS-Storage-common.repo CentOS-OpenStack-train.repo /tmp;fi
+
+- name: install packages                                            
+  yum: name=libaio,numactl-libs,expect,MySQL-python
+
+- name: mkdir /tmp/mysqlbundle
+  file: path=/tmp/mysqlbundle state=directory
+
+#- name: 下载 mysql-8.0.34-1.el7.x86_64.rpm-bundle.tar
+#  get_url:
+#    url: https://dev.mysql.com/get/Downloads/MySQL-8.0/{{ bundleName }}.{{ tarType }}
+#    dest: ../files	
+
+- name: unarchive {{ bundleName }}.{{ tarType }} to remote host 
+  unarchive: src={{ bundleName }}.{{ tarType }} dest=/tmp/mysqlbundle/ owner=root group=root
+
+- name: yum install mysql-community-{*}-*
+#  shell: yum install -y /tmp/mysqlbundle/mysql-community-{server,client,common,libs}-*
+# 安装mysql-5.7.43用上条
+  shell: yum install -y /tmp/mysqlbundle/mysql-community-{server,client,client-plugins,icu-data-files,common,libs}-*
+# 安装mysql-8.0.34用上条
+
+- name: systemctl enable --now mysqld
+  service: name=mysqld state=started enabled=yes
+
+#  需要先启动mysqld，这样系统会自动生成一个默认的/etc/my.cnf，然后再把主控端的my.cnf拷贝覆盖到被控端以配置弱密码及更改端口，如果先拷贝，再启动，被控端的mysqld会启动失败，status mysqld会提示：[ERROR] --initialize specified but the data directory has files in it
+
+- name: config my.cnf
+  copy: src=my.cnf dest=/etc/my.cnf backup=yes owner=root group=root mode=644
+
+#  notify: restart mysqld
+#拷贝my.cnf后需用下面两条指令重启mysqld，用notify: restart mysqld无法重启，无法重启mysqld，拷贝过去的新的my.cnf就不生效，就不能启用弱密码，secure_mysql.sh就无法正确执行，也无法执行开启远程登录的指令
+
+- name: restart mysqld
+  service: name=mysqld state=restarted
+
+- name: secure script
+  script: secure_mysql.sh
+
+- name: allow root login remotely
+#  shell: mysql -p{{ dbRootPasswd }} -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'my@sql';"
+#上条是5.7的方法
+  shell: mysql -p{{ dbRootPasswd }} -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'my@sql'; update mysql.user set host = '%' where user ='root'; FLUSH PRIVILEGES;"
+# 上条是8.0的方法
+
+

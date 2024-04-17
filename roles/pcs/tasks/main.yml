@@ -1,0 +1,36 @@
+- include_tasks: ../../init/tasks/sshcopy.yml
+- include_tasks: setup.yml
+
+- name: echo 'net.ipv4.ip_nonlocal_bind = 1' >> /etc/sysctl.conf
+  lineinfile: path=/etc/sysctl.conf line='net.ipv4.ip_nonlocal_bind = 1' backup=true
+#  用于将集群资源绑定到VIP，需要开启此内核参数
+
+- name: sysctl -p
+  shell: sysctl -p
+
+- name: 
+  block:
+    - name: pcs property set stonith-enabled=false
+      shell: "pcs property set stonith-enabled=false"
+    
+    - name: pcs property set no-quorum-policy=ignore
+      shell: "pcs property set no-quorum-policy=ignore"
+
+    - name: pcs resource create vip ocf:heartbeat:IPaddr2 ip={{ cfVip }} nic='ens33' cidr_netmask=24 op monitor interval=30s
+      shell: "pcs resource create vip ocf:heartbeat:IPaddr2 ip={{ cfVip }} nic='ens33' cidr_netmask=24 op monitor interval=30s"
+    
+    - name: pcs resource create docker systemd:docker op monitor interval=5s
+      shell: "pcs resource create docker systemd:docker op monitor interval=5s"
+
+    - name: pcs resource group add pcsgroup vip docker
+      shell: "pcs resource group add pcsgroup vip docker"
+
+    - name: pcs constraint colocation add vip docker INFINITY
+      shell: "pcs constraint colocation add vip docker INFINITY"
+
+    - name: pcs constraint order vip then docker
+      shell: "pcs constraint order vip then docker"
+
+  when: role == 'mysql2'
+
+

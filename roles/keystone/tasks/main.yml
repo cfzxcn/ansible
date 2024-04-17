@@ -1,0 +1,83 @@
+- name: yum install centos-release-openstack-train python-openstackclient openstack-utils
+  yum: name=centos-release-openstack-train update_cache=yes
+
+- name: Create OpenStack All Databases
+  mysql_db: 
+    name: keystone,placement,glance,neutron,cinder,nova,nova_api,nova_cell0
+    login_user: root
+    login_password: "{{ dbRootPasswd }}"
+    login_unix_socket: /var/lib/mysql/mysql.sock
+  tags:
+    -  createdb
+
+- name: Create user keystone with passwd, keystone db privileges and 'WITH GRANT OPTION' in host
+  mysql_user:
+    login_user: root
+    login_password: "{{ dbRootPasswd }}"
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    state: present
+    name: keystone
+    password: "{{ servicePasswd }}"
+    host: "{{ item }}"
+    priv:
+      'keystone.*': 'ALL,GRANT'
+  with_items:
+    - localhost
+    - "%"
+
+- name: Yum Install Keystone
+  yum: name=openstack-keystone,httpd,mod_wsgi state=latest
+  tags: instkeystone
+
+- name: Backup keystone conf
+  shell: "if [ ! -f /etc/keystone/keystone.conf.original ];then cd /etc/keystone/ && mv keystone.conf keystone.conf.original && egrep -v '^(#|$)' keystone.conf.original > keystone.conf && chown root:keystone keystone.conf;fi"
+
+- name: Modify keystone conf
+  shell: openstack-config --set /etc/keystone/keystone.conf database connection mysql+pymysql://keystone:cf@controller:{{ dbPort }}/keystone && openstack-config --set /etc/keystone/keystone.conf token provider fernet
+
+- name: keystone initialize
+  shell: su -s /bin/sh -c "keystone-manage db_sync" keystone && keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone && keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+
+- name: Create endpoint
+  shell: "keystone-manage bootstrap --bootstrap-password cf \
+--bootstrap-admin-url http://controller:5000/v3/ \
+--bootstrap-internal-url http://controller:5000/v3/ \
+--bootstrap-public-url http://controller:5000/v3/ \
+--bootstrap-region-id RegionOne"
+
+- name: Modify httpd.conf and Create soft link
+  shell: "if ! grep controller /etc/httpd/conf/httpd.conf;then echo 'ServerName controller' >> /etc/httpd/conf/httpd.conf && ln -s /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d/;fi"
+
+- name: Start httpd service
+  service:
+    name: httpd
+    state: restarted
+    enabled: yes
+
+- name: Config env variable
+  shell:
+    cmd: |
+      echo -e "\n" > /etc/openrc.sh
+      cat > /etc/openrc.sh <<EOF
+      export OS_USERNAME=admin
+      export OS_PASSWORD=cf
+      export OS_PROJECT_NAME=admin
+      export OS_USER_DOMAIN_NAME=Default
+      export OS_PROJECT_DOMAIN_NAME=Default
+      export OS_AUTH_URL=http://controller:5000/v3
+      export OS_IDENTITY_API_VERSION=3
+      export OS_IMAGE_API_VERSION=2
+      EOF
+- name: source /etc/openrc.sh
+  shell: grep openrc /etc/profile || echo 'source /etc/openrc.sh' >> /etc/profile;source /etc/profile
+
+- name: Create Project service
+  shell: source /etc/openrc.sh && openstack project list | grep service || openstack project create --domain default --description "Service Project" service
+
+- name: Create role user
+  shell: source /etc/openrc.sh && openstack role list | grep user || openstack role create user
+
+
+
+
+

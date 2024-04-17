@@ -1,0 +1,9 @@
+- name:
+  block:
+    - name: cp coredns.yaml to /opt/k8s/
+      template: src=kubernetes/coredns.yaml.j2 dest=/opt/k8s/coredns.yaml
+    
+    - name: kubectl apply -f /opt/k8s/coredns.yaml
+      shell: "kubectl apply -f /opt/k8s/coredns.yaml"
+
+  when: ansible_hostname == 'c1'

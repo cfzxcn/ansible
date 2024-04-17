@@ -1,0 +1,25 @@
+#- hosts: sql 
+#  gather_facts: no
+#  tasks:
+- name: Modify controller's /etc/chrony.conf
+  block:
+    - name: 注释/etc/chrony.conf中所有以server开头的行
+      replace:
+        backup: true
+        path: /etc/chrony.conf
+        regexp: "^server"
+        replace: "#server"
+    
+    - name: Add 'server controller iburst' to /etc/chrony.conf
+      lineinfile: path=/etc/chrony.conf insertbefore="# Use public servers(.*)" line='server ntp5.aliyun.com iburst'
+    
+    - name: Add 'server controller iburst' to /etc/chrony.conf
+      lineinfile: path=/etc/chrony.conf insertbefore="# Serve time even(.*)" line="allow {{ item }}"
+      with_items:
+        - '{{ clientIpRange192 }}'
+        - '{{ clientIpRange30 }}'
+        - '{{ clientIpRange60 }}'
+  when: role=='bootstrap'
+
+- name: Restart all node's chronyd service
+  service: name=chronyd state=restarted

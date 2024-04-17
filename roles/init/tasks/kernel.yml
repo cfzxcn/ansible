@@ -1,0 +1,29 @@
+- name: mv OpenStack-train.repo... to /tmp
+  shell: cd /etc/yum.repos.d/ && if [ -f CentOS-OpenStack-train.repo ];then mv CentOS-QEMU-EV.repo CentOS-Ceph-Nautilus.repo CentOS-NFS-Ganesha-28.repo CentOS-Storage-common.repo CentOS-OpenStack-train.repo /tmp;fi
+
+# 如果不先移除OpenStack-train源，在yum update --exclude=kernel*时会报：Requires: PyQt4(x86-64) = 4.12-1.el7和Requires: sip(x86-64) = 4.19-1.el7
+
+- name: Remove package elrepo-release
+  yum: name=elrepo-release state=absent update_cache=true
+# 如果安装elrepo-release-7.el7.elrepo.noarch.rpm前已经安装过此包，但/etc/yum.repos.d/下并未生成elrepo.repo，则下面安装时会报错：does not update installed package，所以先rpm -e elrepo-release或yum remove elrepo-release，再安装就正常了
+
+- name: Install  elrepo.noarch.rpm  from a remote repo
+  ansible.builtin.yum:
+    name: https://www.elrepo.org/elrepo-release-7.el7.elrepo.noarch.rpm
+    state: present
+    update_cache: true
+
+- name: Upgrade kernel-lt-{{ kernelVer }}.el7.elrepo.x86_64,kernel-lt-devel-{{ kernelVer }}.el7.elrepo.x86_64
+  ansible.builtin.yum:
+    name: 'kernel-lt-{{ kernelVer }}.el7.elrepo.x86_64,kernel-lt-devel-{{ kernelVer }}.el7.elrepo.x86_64'
+    enablerepo: elrepo-kernel
+
+- name: grub2-set-default 0
+  shell: grub2-set-default 0
+
+- name: Upgrade all packages, excluding kernel related packages
+  ansible.builtin.yum:
+    name: '*'
+    state: latest
+    exclude: kernel*
+

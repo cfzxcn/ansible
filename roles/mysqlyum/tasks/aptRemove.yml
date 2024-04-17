@@ -1,0 +1,47 @@
+---
+- hosts: ub
+  vars:
+    - src_mysql: mysql-5.7.31-linux-glibc2.12-x86_64
+    - BASEDIR: /usr/local/mysql
+    - DATADIR: /var/lib/mysql
+
+  tasks:
+  - name: Stop mysqld service 
+    shell: systemctl stop mysql && systemctl disable mysql && systemctl daemon-reload
+    ignore_errors: true
+
+#  - name: Remove python2-PyMySQL MySQL-python
+#    yum: name=python2-PyMySQL,MySQL-python state=absent
+
+  - name: apt remove -y mysql-server
+    apt: name=mysql-server state=absent
+
+  - name: Userdel MySQL User 
+    user: name=mysql state=absent remove=yes
+
+  - name: Delete files and dir
+    shell: "{{ item }}"
+    with_items: 
+      - "rm -rf /var/lib/mysql"
+      - "rm -rf /var/lib/mysql-keyring"
+      - "rm -rf /var/lib/mysql-files"
+      - "rm -rf /etc/mysql/"
+      - "rm -rf /tmp/mysql80-community-release-el7-8.noarch.rpm"
+      - "rm -rf /var/log/mysql"
+#      - "rm -rf /var/log/mysqld.log"
+# /var/log/mysqld.log必须删除，否则再次安装的时候grep到的临时密码还是上次的，就无法继续执行mysql_secure_installation
+      - "rm -rf /usr/bin/mysql*"
+      - "rm -rf /usr/sbin/mysqld"
+      - "rm -rf /usr/lib64/mysql"
+      - "rm -rf /usr/lib/systemd/system/mysql.service"
+      - "rm -rf /usr/lib/systemd/system/mysql@.service"
+      - "rm -rf /usr/share/doc/mysql-community*"
+      - "rm -rf /usr/share/man/man1/mysql*"
+      - "rm -rf /etc/yum.repos.d/mysql-community*"
+      - "rm -rf /usr/share/mysql-8.0"
+#8.0要删除的
+      - "rm -rf /usr/share/mysql"
+#5.7要删除的
+      - "rm -rf /root/.mysql_history"
+      - "rm -rf /etc/ld.so.conf.d/mysql-x86_64.conf"
+ 

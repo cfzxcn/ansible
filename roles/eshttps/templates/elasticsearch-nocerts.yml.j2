@@ -1,0 +1,42 @@
+cluster.name: cfElastic
+# ------------------------------------ Node ------------------------------------
+node.name: {{ esNodeName }}
+#node.name: {{ ansible_hostname }}
+# Add custom attributes to the node:
+#node.attr.rack: r1
+
+node.roles: [{{ role }}]
+
+# ----------------------------------- Paths ------------------------------------
+# Path to directory where to store the data (separate multiple locations by comma):
+path.data: {{ pathData }}
+# 上下两项务必配置到和es不相同的目录，因为es如果升级或迁移，如果是es目录中，这两个目录会被覆盖
+path.logs: /var/log/elastic
+# ----------------------------------- Memory -----------------------------------
+bootstrap.memory_lock: true
+# 以上三项生产环境必须配置
+# ---------------------------------- Network -----------------------------------
+# By default Elasticsearch is only accessible on localhost. Set a different
+# address here to expose this node on the network:
+network.host: {{ ansible_default_ipv4.address }}
+# By default Elasticsearch listens for HTTP traffic on the first free port it
+# finds starting at 9200. Set a specific HTTP port here:
+http.port: {{ httpPort }}
+transport.port: {{ transPort }}
+# --------------------------------- Discovery ----------------------------------
+# Pass an initial list of hosts to perform discovery when this node is started:
+# The default list of hosts is ["127.0.0.1", "[::1]"]
+#discovery.seed_hosts: ["host1", "host2"]
+#discovery.seed_hosts: ["192,168.1.111:9301", "192,168.1.112:9302", "192,168.1.113:9303"]
+# 上面的写法不行，下面的正确，必须加端口，否则启动报错：Elasticsearch master not discovered yet, this node has not previously joined a bootstrapped
+discovery.seed_hosts: ["es1:9301", "es2:9302", "es3:9303"]
+# 上下两种写法均可，不加端口号，es也会自动加上
+#discovery.seed_hosts: ["192,168.1.111:9301", "192,168.1.112:9302"]
+# Bootstrap the cluster using an initial set of master-eligible nodes:
+cluster.initial_master_nodes: ["es1", "es2", "es3"]
+# cluster.initial_master_nodes: ["es1"]
+# For more information, consult the discovery and cluster formation module documentation.
+# ---------------------------------- Various -----------------------------------
+# Allow wildcard deletion of indices:
+#action.destructive_requires_name: false
+xpack.security.enabled: false

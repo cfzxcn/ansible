@@ -1,0 +1,19 @@
+---
+- hosts: compute2
+#  remote_user: andy
+  gather_facts: true
+  vars_files:
+    - group_vars/main.yml
+
+  roles:
+    - role: init
+      tags: ["init"]
+    - role: comnova
+      tags: ["comnova"]
+    - role: comneutron
+      tags: ["comneutron"]
+    - role: horizon
+      tags: ["horizon"]
+    - role: comcinder
+      tags: ["comcinder"]
+

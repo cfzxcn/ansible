@@ -1,0 +1,90 @@
+#执行此脚本前先执行：ansible-playbook all.yml --tags='keystone' -v，否则报错，因为在keystone角色中创建了所有的数据库，包括在执行此脚本前还未创建的nova_api和nova_cell0
+- name:
+  block:
+    - name: Create user "{{ novaName }}" with passwd in nova.*/nova_api.*/nova_cell0.*, "{{ novaName }}" db privileges and 'WITH GRANT OPTION'
+      mysql_user:
+        login_user: cf
+        login_password: cf
+        login_host: "{{ ansible_default_ipv4.address }}"    
+        state: present
+        name: "{{ novaName }}"
+        password: "{{ dbSpasswd }}"
+        host: "{{ item }}"
+        priv:
+          'nova.*: ALL,GRANT/nova_api.*: ALL,GRANT/nova_cell0.*: ALL,GRANT'
+    #      '"{{ novaName }}".*': 'ALL,GRANT'
+      with_items:
+        - localhost
+        - "%"
+    
+    - name: Create {{ novaName }} user 
+      shell: source /etc/openrc.sh && openstack user list | grep "{{ novaName }}" || openstack user create --domain default --password {{ servicePasswd }} "{{ novaName }}"
+    
+    - name: openstack role add --project service --user "{{ novaName }}" admin
+      shell: source /etc/openrc.sh && openstack service list | grep "{{ novaName }}" || openstack role add --project service --user "{{ novaName }}" admin
+    
+    - name: openstack service create --name "{{ novaName }}" --description "Placement API" "{{ novaName }}"
+      shell: source /etc/openrc.sh && openstack service list | grep "{{ novaName }}" || openstack service create --name "{{ novaName }}" --description "OpenStack Compute" compute
+    
+    - name: Create endpoint on http://controller:8778
+      shell: source /etc/openrc.sh && if ! openstack endpoint list | grep "{{ novaName }}";then openstack endpoint create --region RegionOne compute public http://cfvip:{{ novaPort }}/v2.1 && openstack endpoint create --region RegionOne compute internal http://cfvip:{{ novaPort }}/v2.1 && openstack endpoint create --region RegionOne compute admin http://cfvip:{{ novaPort }}/v2.1;fi
+  when: role == 'bootstrap'
+
+#    openstack-config --set /etc/nova/nova.conf DEFAULT transport_url rabbit://openstack:cf@controller:5672/,openstack:cf@pxc2:5672/,openstack:cf@pxc3:5672/ &&
+- name: Modify {{ novaName }} conf
+  shell: >
+    openstack-config --set /etc/nova/nova.conf DEFAULT enabled_apis osapi_compute,metadata &&
+    openstack-config --set /etc/nova/nova.conf DEFAULT transport_url rabbit://openstack:cf@cfvip:5672/ &&
+    openstack-config --set /etc/nova/nova.conf DEFAULT my_ip "{{ ansible_facts.ens34.ipv4.address }}" &&
+    openstack-config --set /etc/nova/nova.conf DEFAULT use_neutron true &&
+    openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf api auth_strategy keystone &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf api_database connection mysql+pymysql://"{{ novaName }}":"{{ dbSpasswd }}"@cfvip:3306/"{{ novaName }}"_api &&
+    openstack-config --set /etc/nova/nova.conf database connection mysql+pymysql://"{{ novaName }}":"{{ dbSpasswd }}"@cfvip:3306/"{{ novaName }}" &&
+    openstack-config --set /etc/nova/nova.conf glance api_servers http://cfvip:9292 &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken www_authenticate_uri http://cfvip:5000/ &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken auth_url http://cfvip:5000/ &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken memcached_servers controller:11211,pxc2:11211,pxc3:11211 &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken auth_type password &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken project_domain_name Default &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken user_domain_name Default &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken project_name service &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken username "{{ novaName }}" &&
+    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken password "{{ servicePasswd }}" &&
+    openstack-config --set /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp &&
+    openstack-config --set /etc/nova/nova.conf vnc enabled true &&
+    openstack-config --set /etc/nova/nova.conf vnc server_listen '$my_ip' &&
+    openstack-config --set /etc/nova/nova.conf vnc server_proxyclient_address '$my_ip' &&
+    openstack-config --set /etc/nova/nova.conf vnc novncproxy_host 0.0.0.0 &&
+    openstack-config --set /etc/nova/nova.conf vnc novncproxy_port 6080 &&
+    openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://cfvip:6080/vnc_auto.html &&
+    openstack-config --set /etc/nova/nova.conf placement region_name RegionOne &&
+    openstack-config --set /etc/nova/nova.conf placement project_domain_name Default &&
+    openstack-config --set /etc/nova/nova.conf placement project_name service &&
+    openstack-config --set /etc/nova/nova.conf placement auth_type password &&
+    openstack-config --set /etc/nova/nova.conf placement user_domain_name Default &&
+    openstack-config --set /etc/nova/nova.conf placement auth_url http://cfvip:5000/v3 &&
+    openstack-config --set /etc/nova/nova.conf placement username "{{ placementName }}" &&
+    openstack-config --set /etc/nova/nova.conf placement password "{{ servicePasswd }}" &&
+    openstack-config --set /etc/nova/nova.conf scheduler discover_hosts_in_cells_interval 600
+    # 自动发现 nova 计算节点，注意：以上语句不要有空行，否则报错
+    
+- name: "{{ novaName }} initialize"
+  shell: su -s /bin/sh -c "{{ novaName }}-manage api_db sync" "{{ novaName }}" && su -s /bin/sh -c "nova-manage cell_v2 map_cell0" nova && su -s /bin/sh -c "nova-manage cell_v2 create_cell --name=cell1 --verbose" nova && su -s /bin/sh -c "nova-manage db sync" nova 
+  when: role == 'bootstrap'
+
+- name: systemctl enable --now openstack-nova-api.service openstack-nova-scheduler.service openstack-nova-conductor.service openstack-nova-novncproxy.service
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - openstack-nova-api.service
+    - openstack-nova-scheduler.service
+    - openstack-nova-conductor.service
+    - openstack-nova-novncproxy.service
+
+#    openstack-config --set /etc/nova/nova.conf DEFAULT transport_url rabbit://openstack:cf@cfvip:5672/ &&
+#  是条是控制节点为单机，下条控制节点为集群。暂不使用haproxy配置的rabbitmq；直接连接rabbitmq集群
+
+#    openstack-config --set /etc/"{{ novaName }}"/"{{ novaName }}".conf keystone_authtoken memcached_servers controller:11211 &&

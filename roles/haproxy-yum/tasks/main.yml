@@ -1,0 +1,13 @@
+- name:
+  block:
+    - name: yum install haproxy
+      yum: name=haproxy
+    
+    - name: Copy haproxy.cfg to /etc/haproxy/haproxy.cfg
+      template: src=haproxy.cfg.j2 dest=/etc/haproxy/haproxy.cfg backup=yes
+      notify: restart haproxy
+    
+    - name: systemctl enable --now haproxy 
+      service: name=haproxy state=restarted enabled=yes
+
+  when: ansible_hostname == 'c1' or ansible_hostname == 'c4' or ansible_hostname == 'c6'

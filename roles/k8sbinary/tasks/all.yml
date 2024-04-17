@@ -1,0 +1,114 @@
+- name: sed -ri '/^[^#]*swap/s@^@#@' /etc/fstab
+  lineinfile:
+    dest: /etc/fstab
+    regexp: "(^[^#]*)swap(.*0$)"
+    line: '#\1swap\2'
+    backrefs: yes
+    backup: yes
+
+- name: swapoff
+  shell: "swapoff -a && sysctl -w vm.swappiness=0"
+
+- name: yum install ipvsadm ipset sysstat conntrack libseccomp
+  yum: name='ipvsadm,ipset,sysstat,conntrack,libseccomp'
+
+- name: Copy ipvs.conf to /etc/modules-load.d/ipvs.conf
+  copy: src=ipvs.conf dest="/etc/modules-load.d/ipvs.conf"
+
+- name: Start systemd-modules-load.service and daemon-reload
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "systemd-modules-load.service"
+
+######################################
+
+- name: mkdir /opt/cni  /var/log/kubernetes  {{ kuberPath }}/{bin,cfg,ssl,logs}
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes 
+  loop:
+    - /opt/cni/bin
+    - /opt/cni/net.d
+    - /var/log/kubernetes
+    - "{{ kuberPath }}/bin"
+    - "{{ kuberPath }}/cfg"
+    - "{{ kuberPath }}/ssl"
+    - "{{ kuberPath }}/logs"
+
+- name:
+  block:
+    - name: Copy cfssl* to /usr/local/bin
+      copy:
+        src: "{{ item.cfsrc }}"
+        dest: "/usr/local/bin/{{ item.cfdest }}"
+        mode: +x
+      loop:
+        - { cfsrc: 'cfssl_1.6.4', cfdest: 'cfssl' }
+        - { cfsrc: 'cfssljson_1.6.4', cfdest: 'cfssljson' }
+        - { cfsrc: 'cfssl-certinfo_1.6.4', cfdest: 'cfssl-certinfo' }
+
+#######################################################################
+# 创建ca证书  ca-csr.json  ca-config.json
+    - name: Copy ca-config.json  ca-csr.json to {{ kuberPath }}
+      template:
+        src: "{{ item }}.j2"
+        dest: "{{ kuberPath }}/{{ item }}"
+      loop:
+        - ca-csr.json
+        - ca-config.json
+
+# 基于ca-csr.json生成CA证书
+    - name: cfssl gencert -initca ca-csr.json | cfssljson -bare ca
+      shell: "cfssl gencert -initca ca-csr.json | cfssljson -bare ssl/ca"
+      args:
+        chdir: "{{ kuberPath }}/"
+   
+    - name: openssl genrsa -out {{ kuberPath }}/ssl/sa.key 2048
+      shell: "openssl genrsa -out {{ kuberPath }}/ssl/sa.key 2048"
+
+    - name: openssl rsa -in {{ kuberPath }}/ssl/sa.key -pubout -out {{ kuberPath }}/ssl/sa.pub
+      shell: "openssl rsa -in {{ kuberPath }}/ssl/sa.key -pubout -out {{ kuberPath }}/ssl/sa.pub"
+
+    - name: Copy {{ kuberPath }}/ssl/ca*.pem to all node
+      shell: "for NODE in 4 6 7 8;do rsync -az {{ kuberPath }}/ssl/ca*.pem {{ kuberPath }}/ssl/sa.* c$NODE:{{ kuberPath }}/ssl;done"
+# 要分发给所有节点，因为kubelet需要ca.pem
+########################################################################
+
+  when: ansible_hostname == 'c1'
+
+- name: Copy kubectl kubelet kube-proxy to all nodes
+  copy:
+    src: "kubernetes/server/bin/{{ item.src }}"
+    dest: "{{ kuberPath }}/bin/{{ item.dest }}"
+    mode: +x
+  loop:
+    - { src: 'kubectl', dest: 'kubectl' }
+    - { src: 'kubelet', dest: 'kubelet' }
+    - { src: 'kube-proxy', dest: 'kube-proxy' }
+
+- name:
+  block:
+    - name: Copy kube-apiserver  kube-scheduler  kube-controller-manager to master nodes
+      copy:
+        src: "kubernetes/server/bin/{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: +x
+      loop:
+        - { src: 'kube-apiserver', dest: '/opt/kubernetes/bin' }
+        - { src: 'kube-scheduler', dest: '/opt/kubernetes/bin' }
+        - { src: 'kube-controller-manager', dest: '/opt/kubernetes/bin' }
+
+  when: ansible_hostname == 'c1' or ansible_hostname == 'c4' or ansible_hostname == 'c6'
+
+#####################################
+- name: Append {{ kuberPath }}/bin to ~/.bashrc
+  lineinfile: path='~/.bashrc' line='PATH={{ kuberPath }}/bin:$PATH' backup=true
+
+- name: Source PATH variable
+  shell: "source ~/.bashrc"
+  args:
+    executable: /bin/bash
+# source没生效，待改进！或者用软链接实现    

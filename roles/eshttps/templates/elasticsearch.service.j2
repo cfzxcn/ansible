@@ -1,0 +1,15 @@
+[Unit]
+Description=ElasticSearch {{ elasticVer }}
+After=network.target
+
+[Service]
+User={{ elkUser }}
+#Type=forking
+LimitNOFILE=100000
+LimitNPROC=100000
+ExecStart={{ elasticInstallDir }}/es870/bin/elasticsearch -d
+#PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

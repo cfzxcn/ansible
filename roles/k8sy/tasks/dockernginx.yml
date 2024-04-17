@@ -1,0 +1,26 @@
+- name:
+  block:
+    - name: mkdir /opt/compose/nginx/conf/vhost/ -p
+      file:
+        path: "{{ item }}"
+        state: directory
+        recurse: yes
+      loop:
+        - '/opt/compose/nginx/conf/vhost/'
+        - '/opt/compose/nginx/html/'
+
+    - name: Copy nginx-conf/ /opt/compose/nginx/conf
+      copy: src='nginx-conf/' dest="/opt/compose/nginx/conf"
+      
+    - name: docker pull c3.st.cn:10080/cfproject/ubng:1.24.0
+      shell: docker pull c3.st.cn:10080/cfproject/ubng:1.24.0
+
+    - name: docker run -d --name ubng -p 28443:28443
+      shell: 'docker run -d --name ubng -p 28443:28443 \
+--restart=always --privileged=true \
+-v /var/log/nginx/:/var/log/nginx/ \
+-v /opt/compose/nginx/conf:/etc/nginx/ \
+-v /opt/compose/nginx/conf/vhost/:/etc/nginx/vhost/ \
+c3.st.cn:10080/cfproject/ubng:1.24.0 bash'
+
+  when: ansible_hostname == 'c1' or ansible_hostname == 'c4' or ansible_hostname == 'c6'

@@ -1,0 +1,106 @@
+# roles/cominit/vars/main.yml
+#computeIp: 192.168.1.34
+#computeHostname: "c1.st.cn"
+
+# fastdfs
+basePath: /dfsData
+trackerPort: 22122
+httpServerPort: 80
+fdfsVer: 6.12.1
+# 这个变量用在两个service中
+UnarchiveDir: /root
+
+redisVer: 7.0.9
+redisUnarchiveDir: /tmp
+redisInstallDir: /opt/redis7
+redisPass: cf
+redisMasterPort: 16379
+
+# common begging
+systemdDir: /usr/lib/systemd/system
+ensX: ens34
+#ensXip: 60.0.0.61
+#localIp: 60.0.0.61
+cfVip: 192.168.1.100
+k8svip: '192.168.1.108/24'
+vipdbPort: 3888
+dbPort: 3888
+dbRootPasswd: my@sql
+dbSpasswd: cf
+
+# common end
+kernelVer: 5.4.269-1
+#kernelVer: 5.4.260-1
+
+redisClusterDir: /etc/redis-cluster
+
+###  pxc begging
+pxcClusterName: cfpxccluster
+wsrep_sst_auth_user: sstuser
+wsrep_sst_auth_password: cf
+
+dbName: wordpress
+app_user: cf
+app_password: cf
+internal_net: '192.168.1.%'
+###  pxc end
+
+cephDir: '~/ceph-cluster'
+
+# mysql glibc
+packName: mysql-8.0.21-linux-glibc2.12-x86_64
+#packName: mysql-5.7.31-linux-glibc2.12-x86_64
+tarType: tar.xz
+#TARTYPE: tar.gz
+BASEDIR: /usr/local/mysql
+DATADIR: /data/mysql_data
+
+# mysqlbundle
+#packName: mysql-8.0.21-linux-glibc2.12-x86_64
+#packName: mysql-5.7.43-1.el7.x86_64.rpm-bundle
+bundleName: mysql-8.0.34-1.el7.x86_64.rpm-bundle
+#tarType: tar
+#tarType: tar.xz
+
+# mysqlyum
+
+# compute
+servicePasswd: cf
+cinderConfPath: /etc/cinder/cinder.conf
+cinderName: cinder
+cinderPort: 8776
+# roles/comneutron/vars/main.yml
+neutronName: neutron
+neutronPort: 9696
+
+novaConfPath: /etc/nova/nova.conf
+novaName: nova
+novaPort: 8774
+
+placementName: placement
+placementPort: 8778
+
+# nginx
+ngVer: 1.24.0
+ngInstallDir: /opt/nginx
+ngPort: 7188
+ngServerName: localhost
+ngUser: nginx
+ngModule: --with-http_ssl_module --with-http_gzip_static_module --with-debug --with-http_stub_status_module --with-http_realip_module --with-http_addition_module --with-http_sub_module --with-http_dav_module --with-http_flv_module --with-http_mp4_module --with-http_gunzip_module --with-http_random_index_module --with-http_secure_link_module --with-http_auth_request_module --with-threads --with-stream --with-stream_realip_module --with-stream_ssl_module --with-stream_ssl_preread_module --with-http_slice_module --with-file-aio --with-http_v2_module
+
+phpPort: 35638
+php5640Port: 5640
+phpUser: php
+phpInstallDir: /usr/local
+
+# contrller chronyd allow ...
+clientIpRange192: 192.168.1.0/16
+clientIpRange30: 30.0.0.0/16
+clientIpRange60: 60.0.0.0/16
+
+jdkVer: 11.0.18
+#tom_Ver: 9.0.34
+tomVer: 10.1.13
+tomInstallDir: /usr/local
+tomPort: 8010
+

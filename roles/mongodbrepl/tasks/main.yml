@@ -1,0 +1,13 @@
+- include_tasks: all.yml
+# 2、使用all.yml对集群所有节点安装docker和安装kubeadm  kubelet  kubectl
+
+#- include_tasks: master.yml
+# 3、对集群所有节点执行pem.yml
+#- include_tasks: plugin.yml
+#- name: Copy package mongodb-mongosh-2.1.0.x86_64.rpm
+#  copy:
+#    src: mongodb-mongosh-2.1.0.x86_64.rpm
+#    dest: /tmp
+#
+#- name: Install mongodb-mongosh-2.1.0.x86_64.rpm
+#  shell: "rpm -ivh /tmp/mongodb-mongosh-2.1.0.x86_64.rpm"

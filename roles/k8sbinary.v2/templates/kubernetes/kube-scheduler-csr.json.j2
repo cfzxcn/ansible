@@ -1,0 +1,25 @@
+{% set cluster_address=[] %}
+{% for host in groups['k8masters'] %}
+{% set ceph_ip = hostvars[host]['ansible_default_ipv4']['address'] %}
+{% set _ = cluster_address.append("{}".format(ceph_ip)) %}
+{% endfor %}
+{
+    "CN": "system:kube-scheduler",
+    "key": {
+      "algo": "rsa",
+      "size": 2048
+    },
+    "hosts": [
+      "127.0.0.1",
+      "{{ cluster_address | join('",\n    "') }}"
+    ],
+    "names": [
+      {
+        "C": "{{ Cvalue }}",
+        "ST": "{{ STvalue }}",
+        "L": "{{ Lvalue }}",
+        "O": "system:kube-scheduler",
+        "OU": "system"
+      }
+    ]
+}

@@ -1,0 +1,17 @@
+[Unit]
+Description=FastDFS-Storaged-{{ fdfsVer }}
+After=network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=simple
+PIDFile={{ basePath }}/data/fdfs_storaged.pid
+Restart=always
+PrivateTmp=true
+ExecStart=/usr/bin/fdfs_storaged /etc/fdfs/storage.conf
+ExecStartPost=/bin/sleep 0.1
+ExecStop=/usr/bin/fdfs_storaged /etc/fdfs/storage.conf stop
+#ExecReload=/bin/kill -s HUP $MAINPID
+#ExecStop=/bin/kill -s QUIT $MAINPID
+
+[Install]
+WantedBy=multi-user.target

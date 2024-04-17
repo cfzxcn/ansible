@@ -1,0 +1,36 @@
+- name: Add k8s repo
+  yum_repository: 
+    name: k8s 
+    description: k8s from tencent.com
+    baseurl: "https://mirrors.cloud.tencent.com/kubernetes/yum/repos/kubernetes-el$releasever-$basearch"
+    gpgcheck: no
+
+- name: Install  kubeadm  kubelet  kubectl-{{ kubeVer }}
+  ansible.builtin.yum:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+    - 'kubelet-{{ kubeVer }}'
+    - 'kubeadm-{{ kubeVer }}'
+    - 'kubectl-{{ kubeVer }}'
+
+- name: systemctl enable kubelet.service
+  shell: systemctl enable kubelet.service
+
+#- name: start and enable kubelet
+#  service: name="kubelet" state=started enabled=yes
+# 安装后先不要启动kubelet，否则日志报：Failed to load kubelet config file" err="failed to load Kubelet config file /var/lib/kubelet/config.yaml，等init后再启动
+#############################################################################
+
+- name: Append source <(kubectl completion bash) to ~/.bashrc
+  lineinfile: path='~/.bashrc' line='source <(kubectl completion bash)' backup=true
+# 安装kubectl的自动补全
+- name: Append source <(kubeadm completion bash) to ~/.bashrc
+  lineinfile: path='~/.bashrc' line='source <(kubeadm completion bash)' backup=true
+
+- name: Source PATH variable
+  shell: "source ~/.bashrc"
+  args:
+    executable: /bin/bash
+

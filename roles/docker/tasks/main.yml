@@ -1,0 +1,81 @@
+#- name: Download docker packages
+#  get_url:
+#    url: {{ item }}
+#    dest: /tmp
+#  loop:
+#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7/x86_64/stable/Packages/containerd.io-1.6.9-3.1.el7.x86_64.rpm }
+#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7/x86_64/stable/Packages/docker-buildx-plugin-0.11.2-1.el7.x86_64.rpm }
+#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7/x86_64/stable/Packages/docker-ce-{{ dockerVer }}.el7.x86_64.rpm }
+#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7/x86_64/stable/Packages/docker-ce-cli-{{ dockerVer }}.el7.x86_64.rpm }
+#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7/x86_64/stable/Packages/docker-compose-plugin-2.6.0-3.el7.x86_64.rpm }
+
+#- name: Remove docker older version
+#  ansible.builtin.yum:
+#    name: "{{ item }}"
+#    state: absent
+#  loop:
+#    - docker 
+#    - docker-client
+#    - docker-client-latest
+#    - docker-common
+#    - docker-latest
+#    - docker-latest-logrotate
+#    - docker-logrotate
+#    - docker-engine
+
+- name: Copy six docker rpms to clients
+  copy:
+    remote_src: false
+    src: "{{ item }}"
+    dest: "/tmp/{{ item }}"
+#    force: no
+  loop:
+    - containerd.io-1.6.9-3.1.el7.x86_64.rpm
+#    - docker-buildx-plugin-0.11.2-1.el7.x86_64.rpm  
+    - "docker-ce-{{ dockerVer }}.x86_64.rpm"
+    - "docker-ce-cli-{{ dockerVer }}.x86_64.rpm" 
+    - docker-compose-plugin-2.10.2-3.el7.x86_64.rpm
+    - "docker-ce-rootless-extras-{{ dockerVer }}.x86_64.rpm"
+#  ignore_errors: true
+
+- name: Install three docker Dependency
+  ansible.builtin.yum:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+    - fuse-overlayfs
+    - fuse3-libs
+    - slirp4netns
+#  ignore_errors: true
+
+- name: Install six docker rpms from local
+  yum:
+    name: "/tmp/containerd.io-1.6.9-3.1.el7.x86_64.rpm,/tmp/docker-ce-{{ dockerVer }}.x86_64.rpm,/tmp/docker-ce-cli-{{ dockerVer }}.x86_64.rpm,/tmp/docker-compose-plugin-2.10.2-3.el7.x86_64.rpm,/tmp/docker-ce-rootless-extras-{{ dockerVer }}.x86_64.rpm"
+# 不支持通配符;将这6个包一起安装，不要分开安装，因为有依赖性问题
+
+- name: mkdir /etc/docker
+  file: path="/etc/docker" state=directory recurse=yes
+
+- name: Copy accelerator daemon.json to /etc/docker/
+  copy: src=daemon.json dest=/etc/docker/daemon.json
+  notify: 'daemon-reload and restart docker'
+
+- name: Create the docker group
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: adding existing user andy to group docker
+  user:
+    name: andy
+    groups: docker
+    append: yes
+
+- name: start and enable docker containerd
+  service: name="docker" state=started enabled=yes
+
+- name: 查看状态
+  shell: docker info
+  register: docker
+- debug: var=docker.stdout_lines

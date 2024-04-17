@@ -1,0 +1,26 @@
+{% set cluster_address=[] %}
+# 定义空列表
+{% set pxchosts = groups.pxc %}
+
+{% for host in pxchosts %}
+# groups['pxc']指的是/etc/ansible/hosts中的[pxc]组
+  {% set pxc_ip = hostvars[host]['ansible_default_ipv4']['address'] %}
+  {% set _ = cluster_address.append("{}".format(pxc_ip)) %}
+# 列表有一个功能是追加append； 把pxc_ip追加到cluster_address列表里
+{% endfor %}
+
+[mysqld]
+wsrep_provider=/usr/lib64/galera3/libgalera_smm.so
+wsrep_cluster_name={{ pxcClusterName }}
+wsrep_cluster_address='gcomm://{{ cluster_address | join(',') }}'
+# join(',')是python中的方法，作用是用逗号连接cluster_address列表中的多个字符串
+wsrep_node_name={{ ansible_hostname }}
+wsrep_node_address={{ ansible_default_ipv4.address }}
+wsrep_sst_method=xtrabackup-v2
+wsrep_sst_auth="{{ wsrep_sst_auth_user }}:{{ wsrep_sst_auth_password }}"
+pxc_strict_mode=ENFORCING
+binlog_format=ROW
+default_storage_engine=InnoDB
+innodb_autoinc_lock_mode=2
+wsrep_slave_threads=8
+wsrep_log_conflicts

@@ -1,0 +1,48 @@
+# 在kylin-v10测试通过
+- name: 'Install clickhouse Dependency: libtool *unixODBC*'
+  ansible.builtin.yum:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+    - libtool
+    - '*unixODBC*'
+
+- name: Copy four clickhouse rpms to clients
+  copy:
+    remote_src: false
+    src: "{{ item }}"
+    dest: "/tmp/{{ item }}"
+#    force: no
+  loop:
+#    - repomd.xml.key
+#    - CLICKHOUSE-KEY.GPG
+    - clickhouse-client-{{ chVer }}.x86_64.rpm
+    - clickhouse-common-static-{{ chVer }}.x86_64.rpm
+    - clickhouse-common-static-dbg-{{ chVer }}.x86_64.rpm
+    - clickhouse-server-{{ chVer }}.x86_64.rpm
+
+#- name: Import a key from a file
+#  ansible.builtin.rpm_key:
+#    state: present
+#    key: /tmp/repomd.xml.key
+
+- name: Install four clickhouse rpms from local
+  shell: "rpm -ivh /tmp/clickhouse-client-{{ chVer }}.x86_64.rpm /tmp/clickhouse-common-static-dbg-{{ chVer }}.x86_64.rpm /tmp/clickhouse-common-static-{{ chVer }}.x86_64.rpm /tmp/clickhouse-server-{{ chVer }}.x86_64.rpm"
+  args:
+    chdir: "/tmp/"  
+#  yum:
+#    state: present
+#    name: 
+#      - /tmp/clickhouse-client-{{ chVer }}.x86_64.rpm
+#      - /tmp/clickhouse-common-static-dbg-{{ chVer }}.x86_64.rpm
+#      - /tmp/clickhouse-common-static-{{ chVer }}.x86_64.rpm
+#      - /tmp/clickhouse-server-{{ chVer }}.x86_64.rpm"
+#    name: "/tmp/clickhouse-client-{{ chVer }}.x86_64.rpm,/tmp/clickhouse-common-static-dbg-{{ chVer }}.x86_64.rpm,/tmp/clickhouse-common-static-{{ chVer }}.x86_64.rpm,/tmp/clickhouse-server-{{ chVer }}.x86_64.rpm"
+
+- name: Copy config.xml to /etc/clickhouse-server/
+  copy: src=config.xml dest=/etc/clickhouse-server/ backup=yes mode=0400 group=clickhouse owner=clickhouse
+  notify: 'daemon-reload and restart clickhouse-server'
+
+
+

@@ -1,0 +1,38 @@
+{% set cluster_address=[] %}
+{% for host in groups['k8masters'] %}
+{% set ceph_ip = hostvars[host]['ansible_default_ipv4']['address'] %}
+{% set _ = cluster_address.append("{}".format(ceph_ip)) %}
+{% endfor %}
+{
+    "CN": "system:kube-controller-manager",
+    "key": {
+        "algo": "rsa",
+        "size": 2048
+    },
+    "hosts": [
+    "127.0.0.1",
+    "10.10.10.1",
+    "10.96.0.1",
+    "60.0.0.61",
+    "60.0.0.62",
+    "60.0.0.63",
+    "60.0.0.64",
+    "kubernetes",
+    "kubernetes.default",
+    "kubernetes.default.svc",
+    "kubernetes.default.svc.cluster",
+    "kubernetes.default.svc.cluster.local",
+    "{{ kvip }}",
+    "{{ cluster_address | join('",\n    "') }}"
+    ],
+    "names": [
+      {
+        "C": "CN",
+        "ST": "Shanxi",
+        "L": "Datong",
+        "O": "system:kube-controller-manager",
+        "OU": "system"
+      }
+    ]
+}
+

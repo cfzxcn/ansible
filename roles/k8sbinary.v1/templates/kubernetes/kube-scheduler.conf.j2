@@ -1,0 +1,6 @@
+KUBE_SCHEDULER_OPTS="--logtostderr=true \
+--v=4 \
+--log-dir={{ kuberPath }}/logs \
+--leader-elect=true \
+--kubeconfig={{ kuberPath }}/cfg/kube-scheduler.kubeconfig \
+--address=127.0.0.1"

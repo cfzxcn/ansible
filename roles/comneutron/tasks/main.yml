@@ -1,0 +1,69 @@
+- name: yum install openvswitch ... and openstack-nova-compute
+#  yum: name="openvswitch,openstack-neutron-openvswitch,ebtables,ipset"
+  yum: name="openvswitch,openstack-neutron-openvswitch,ebtables,ipset,openstack-nova-compute"
+  tags: install"{{ neutronName }}"ovs
+
+- name: Backup "{{ neutronName }}" conf
+  shell: if [ ! -f /etc/"{{ neutronName }}"/"{{ neutronName }}".conf.original ];then cd /etc/"{{ neutronName }}"/ && mv "{{ neutronName }}".conf "{{ neutronName }}".conf.original && egrep -v '^(#|$)' "{{ neutronName }}".conf.original > "{{ neutronName }}".conf && chown root:"{{ neutronName }}" "{{ neutronName }}".conf;fi
+
+- name: Modify "{{ neutronName }}" conf
+  shell: >
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT transport_url rabbit://openstack:cf@controller &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf DEFAULT auth_strategy keystone &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken www_authenticate_uri http://controller:5000 &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken auth_url http://controller:5000 &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken memcached_servers controller:11211 &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken auth_type password &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken project_domain_name Default &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken user_domain_name Default &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken project_name service &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken username "{{ neutronName }}" &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf keystone_authtoken password "{{ servicePasswd }}" &&
+    openstack-config --set /etc/"{{ neutronName }}"/"{{ neutronName }}".conf oslo_concurrency lock_path /var/lib/neutron/tmp
+
+- name: Backup openvswitch_agent.ini
+  shell: if [ ! -f /etc/neutron/plugins/ml2/openvswitch_agent.ini.original ];then cd /etc/neutron/plugins/ml2 && mv openvswitch_agent.ini openvswitch_agent.ini.original && egrep -v '^(#|$)' openvswitch_agent.ini.original > openvswitch_agent.ini && chown root:neutron openvswitch_agent.ini;fi
+
+- name: Modify openvswitch_agent.ini
+  shell: >
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs tunnel_bridge br-tun &&
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs local_ip "{{ ansible_facts.ens36.ipv4.address }}" &&
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini agent tunnel_types vxlan &&
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini agent l2_population true &&
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini securitygroup enable_security_group true &&
+    openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini securitygroup firewall_driver iptables_hybrid
+
+- name: modprobe br_netfilter
+  shell: modprobe br_netfilter && sysctl -p 
+
+- name: Append $amodprobe br_netfilter to /etc/rc.local
+  lineinfile: path=/etc/rc.local line="$amodprobe br_netfilter" backup=true
+ 
+- name: /etc/rc.d/rc.local add mode=755
+  file: path=/etc/rc.d/rc.local mode=755
+
+- name: Backup /etc/nova/nova.conf
+  shell: if [ ! -f /etc/nova/nova.conf.original ];then cd /etc/nova/ && mv nova.conf nova.conf.original && egrep -v '^(#|$)' nova.conf.original > nova.conf && chown root:nova nova.conf;fi
+
+- name: Modify /etc/nova/nova.conf
+  shell: >
+    openstack-config --set /etc/nova/nova.conf neutron auth_url http://controller:5000 &&
+    openstack-config --set /etc/nova/nova.conf neutron auth_type password &&
+    openstack-config --set /etc/nova/nova.conf neutron project_domain_name default &&
+    openstack-config --set /etc/nova/nova.conf neutron user_domain_name default &&
+    openstack-config --set /etc/nova/nova.conf neutron region_name RegionOne &&
+    openstack-config --set /etc/nova/nova.conf neutron project_name service &&
+    openstack-config --set /etc/nova/nova.conf neutron username neutron &&
+    openstack-config --set /etc/nova/nova.conf neutron password cf
+
+- name: Restart openstack-nova-compute service
+  service:
+    name: "openstack-nova-compute.service"
+    state: restarted
+  ignore_errors: true
+#如果这里重启openstack-nova-compute会报错，因为nova.conf中的配置还未齐全，需要先运行comnova脚本，再执行此脚本
+- name: systemctl enable --now openvswitch neutron-openvswitch-agent 
+  shell: systemctl enable --now openvswitch neutron-openvswitch-agent 
+  ignore_errors: true
+
+

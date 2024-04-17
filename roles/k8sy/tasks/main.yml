@@ -1,0 +1,40 @@
+#- include_tasks: /root/playbook/roles/init/tasks/kernel.yml
+#- include_tasks: /root/playbook/roles/init/tasks/init.yml
+# 1、对所有节点初始化和升级内核
+##- include_tasks: test.yml
+
+#- include_tasks: all.yml
+# 2、使用all.yml对集群所有节点安装docker和安装kubeadm  kubelet  kubectl
+
+#- include_tasks: dockernginx.yml
+# 3、安装docker的nginx做为负载均衡器
+
+# ansible-playbook keepalived.yml -v
+# 4、生成vip，只配置所有master节点
+# ansible-playbook all.yml -t keepalived-yum -v
+
+#- include_tasks: threekube.yml
+# 5、配置k8s的yum源并在所有节点安装3个kube，并安装k8s的自动补全
+
+# - include_tasks: master.yml
+# 6、这是非高可用集群用的，但也不能用，还有问题
+
+- include_tasks: plugin.yml
+# 7、安装各种插件，如：kube-flannel.0.23.0.yal
+
+#- include_tasks: traefik.yml
+# 8、安装traefik-ingress1.7.9，感觉有问题
+
+#- include_tasks: admin.yml
+# 9、执行后所有node节点也能执行kubectl命令了
+
+#- include_tasks: ingress-nginx.yml
+# 10、执行后c1执行了ingress-nginx.yml，指定的node节点加入了ingress-nginx
+
+
+
+
+
+
+# ansible-playbook all.yml -t haproxy-yum -v
+# 6、安装haproxy，只配置master节点，必须先安装haproxy,再安装keepalived，否则keepalived无法启动

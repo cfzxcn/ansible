@@ -1,0 +1,53 @@
+- name:
+  block:
+    - name: Copy kube-apiserver-csr.json to {{ kuberPath }}
+      template:
+        src: "kubernetes/{{ item }}.j2"
+        dest: "{{ kuberPath }}/{{ item }}"
+      loop:
+        - kube-apiserver-csr.json
+
+####################################################################
+# 生成apiserver证书及token文件
+    - name: cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname={{ kubeAddr }} -profile=kubernetes kube-apiserver-csr.json | cfssljson -bare kube-apiserver
+      shell: "cfssl gencert -ca=ssl/ca.pem -ca-key=ssl/ca-key.pem -config=ca-config.json -profile=kubernetes kube-apiserver-csr.json | cfssljson -bare ssl/kube-apiserver"
+      args:
+        chdir: "{{ kuberPath }}"
+
+    - name: Generate token.csv to {{ kuberPath }}/ssl
+      shell:
+#        removes: "/etc/sysconfig/network-scripts/ifcfg-{{ ensX }}"
+    # removes:如果文件不存在，不会执行后面的命令
+        cmd: |
+          cat > token.csv << EOF
+          $(head -c 16 /dev/urandom | od -An -t x | tr -d ' '),kubelet-bootstrap,10001,"system:kubelet-bootstrap"
+          EOF
+      args:
+        chdir: "{{ kuberPath }}/ssl"
+
+    - name: Copy {{ kuberPath }}/ssl/kube-apiserver*.pem token.csv to other master node
+      shell: "for NODE in c4 c6;do rsync -az {{ kuberPath }}/ssl/kube-apiserver*.pem {{ kuberPath }}/ssl/token.csv $NODE:{{ kuberPath }}/ssl;done"
+
+#####################################################################
+  when: ansible_hostname == 'c1'
+
+- name:
+  block:
+    - name: Copy two kube-apiserver conffile to all master node
+      template:
+        src: "kubernetes/{{ item.cfsrc }}"
+        dest: "{{ item.cfdest }}"
+      loop:
+        - { cfsrc: 'kube-apiserver.service.j2', cfdest: '/usr/lib/systemd/system/kube-apiserver.service' }
+        - { cfsrc: 'kube-apiserver.conf.j2', cfdest: '/opt/kubernetes/cfg/kube-apiserver.conf' }
+#      notify: restart etcd
+
+    - name: Start kube-apiserver and daemon-reload
+      ansible.builtin.systemd:
+        state: started
+        enabled: true
+        daemon_reload: true
+        name: "kube-apiserver.service"
+
+  when: ansible_hostname == 'c1' or ansible_hostname == 'c4' or ansible_hostname == 'c6'
+

@@ -1,0 +1,10 @@
+---
+- hosts: sql
+  vars:
+    - nicName: ens36
+    - IP: 30.0.0.30
+
+  tasks: 
+    - name: Add net interface and restart 
+      shell: nmcli connection add con-name {{ nicName }} ifname {{ nicName }} autoconnect yes ipv4.method manual type 802-3-ethernet ipv4.addresses {{ IP }}/24 && ifdown {{ nicName }};ifup {{ nicName }}
+

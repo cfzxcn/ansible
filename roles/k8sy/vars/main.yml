@@ -1,0 +1,11 @@
+dockerVer: 20.10.24-3.el7
+kubeVer: 1.23.17
+#cnName: kubernetes
+nodeList: c7 c8
+allList: c6 c7 c8
+masterList: c6
+workerList: c7 c8
+kvip: 192.168.1.200
+httpskvip: https://192.168.1.200:8443
+# 这个192.168.1.200:8443是keepalivedp中自定义的vip
+#kubeApiserver: https://192.168.1.61:6443

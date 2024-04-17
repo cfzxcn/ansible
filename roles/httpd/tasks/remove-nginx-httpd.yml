@@ -1,0 +1,29 @@
+---
+- hosts: sql
+  vars:
+#    - BASEDIR: /usr/local/mysql
+#    - softName: httpd
+    - softName: nginx
+
+  tasks:
+  - name: stop {{ softName }} service 
+#    shell: systemctl stop {{ softName }} && systemctl disable {{ softName }} && systemctl daemon-reload
+    service: name={{ softName }} state=stopped 
+
+  - name: yum remove {{ softName }}
+    yum: name={{ softName }} state=absent 
+
+  - name: Delete {{ softName }} user 
+    user: name={{ softName }} state=absent remove=yes
+
+#  - name: Delete apache user 
+#    user: name=apache state=absent remove=yes
+
+  - name: delete {{ softName }} files and dir
+    file: path={{ item }} state=absent
+    with_items: 
+      - "/etc/{{ softName }}"
+      - "/var/log/{{ softName }}"
+
+#      - /usr/share/nginx/html
+      - /etc/yum.repos.d/nginx-stable.repo

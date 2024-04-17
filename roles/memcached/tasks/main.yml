@@ -1,0 +1,13 @@
+- name: yum install centos-release-openstack-train
+  yum: name=centos-release-openstack-train update_cache=true
+# 使用centos-release-openstack-train源安装的memcached版本高些，是1.5.6，如果用base源，版本是：1.4.15
+- name: yum install memcached python-memcached
+  yum: name="memcached,python-memcached"
+
+- name: Generate memcached config file
+  template: src=memcached.j2 dest=/etc/sysconfig/memcached
+  notify: restart memcached
+
+- name: start memcached service
+  service: name=memcached state=started enabled=yes
+

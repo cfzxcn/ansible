@@ -1,0 +1,27 @@
+# 运行仪表板准备开始
+#- name: ceph-deploy --overwrite-conf config push c4
+#  shell: ceph-deploy --overwrite-conf config push c4
+- name: Setup dashboard on c4
+  block:
+    - name: yum install ceph-mgr-dashboard to c4
+      yum: name=ceph-mgr-dashboard
+    
+    - name: ceph mgr module enable dashboard
+      shell: 'ceph mgr module enable dashboard --force'
+    
+    - name: ceph dashboard create-self-signed-cert
+      shell: 'ceph dashboard create-self-signed-cert'
+    
+    - name: ceph config set mgr mgr/dashboard/ssl true
+      shell: 'ceph config set mgr mgr/dashboard/ssl true'
+
+    - name: systemctl restart ceph-mgr@c4.service
+      service: name=ceph-mgr@c4.service state=restarted
+
+    - name: Generate dashboard passwd file
+      copy: content="cf" dest=/etc/ceph/pass
+
+    - name: ceph dashboard ac-user-create cf administrator -i /etc/ceph/pass
+      shell: 'ceph dashboard ac-user-create cf administrator -i /etc/ceph/pass'
+  when: ansible_fqdn == 'c4.st.cn'
+# 运行仪表板准备结束

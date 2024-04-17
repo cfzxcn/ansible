@@ -1,0 +1,52 @@
+#- name: Copy helm to /usr/local/bin
+#  copy: src='helm' dest="/usr/local/bin" mode=a+x
+#
+#- name: source <(helm completion bash)
+#  shell: 'source <(helm completion bash)'
+#  args:
+#    executable: /bin/bash
+## 当前的shell终端生效helm的自动补全功能
+#
+#- name: helm completion bash > /etc/bash_completion.d/helm
+#  shell: helm completion bash > /etc/bash_completion.d/helm
+## 仅对新打开的会话添加自动补全功能
+
+- name:
+  block:
+#    - name: mkdir /opt/k8s -p
+#      file: path="/opt/k8s" state=directory recurse=yes
+
+    - name: Generate  kube-flannel.0.23.0.yaml  calico.yaml  metrics.yaml  dashboard.yaml
+      template:
+        src: "{{ item.src }}.yaml.j2"
+        dest: "/opt/k8s/{{ item.dest }}.yaml"
+      loop:
+#        - { src: kube-flannel.0.23.0, dest: kube-flannel.0.23.0 }
+#        - { src: calico.3.26.1, dest: calico }
+#        - { src: dashboard.2.7.0, dest: dashboard }
+        - { src: metrics.0.6.4, dest: metrics.0.6.4 }
+#        - { src: admin, dest: admin }
+#        - { src: ingress-nginx.v1.6.4, dest: ingress-nginx.v1.6.4 }
+        
+#    - name: kubectl apply -f /opt/k8s/kube-flannel.0.23.0.yaml
+#      shell: "kubectl apply -f /opt/k8s/kube-flannel.0.23.0.yaml"
+
+#    - name: kubectl apply -f /opt/k8s/ingress-nginx.v1.6.4.yaml
+#      shell: "kubectl apply -f /opt/k8s/ingress-nginx.v1.6.4.yaml"
+
+#    - name: kubectl apply -f /opt/k8s/calico.yaml
+#      shell: "kubectl apply -f /opt/k8s/calico.yaml"
+#
+    - name: kubectl apply -f /opt/k8s/metrics.0.6.4.yaml
+      shell: "kubectl apply -f /opt/k8s/metrics.0.6.4.yaml"
+#
+#    - name: kubectl apply -f /opt/k8s/dashboard.yaml
+#      shell: "kubectl apply -f /opt/k8s/dashboard.yaml"
+#
+#    - name: kubectl create -f /opt/k8s/admin.yaml
+#      shell: "kubectl create -f /opt/k8s/admin.yaml"
+#
+#    - name: kubectl apply -f https://addons.kuboard.cn/kuboard/kuboard-v3-swr.yaml
+#      shell: "kubectl apply -f https://addons.kuboard.cn/kuboard/kuboard-v3-swr.yaml"
+
+  when: ansible_hostname == 'c1'

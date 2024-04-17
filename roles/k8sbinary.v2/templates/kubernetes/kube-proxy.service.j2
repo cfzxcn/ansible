@@ -1,0 +1,24 @@
+[Unit]
+Description=Kubernetes Proxy
+After=network.target
+
+[Service]
+#EnvironmentFile={{ kuberPath }}/cfg/kube-proxy.conf
+#ExecStart={{ kuberPath }}/bin/kube-proxy $KUBE_PROXY_OPTS
+
+WorkingDirectory=/var/lib/kube-proxy
+ExecStart={{ kuberPath }}/bin/kube-proxy \
+  --config={{ kuberPath }}/cfg/kube-proxy.yaml \
+  --v=2
+
+Restart=on-failure
+#Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+

@@ -1,0 +1,17 @@
+- name:
+  block:
+    - name: mkdir -p /opt/k8s/traefik1.7.9
+      file: path="/opt/k8s/traefik1.7.9" state=directory recurse=yes
+
+    - name: Generate traefik-rbac.yaml  .yaml
+      template:
+        src: "{{ item.src }}.yaml.j2"
+        dest: "/opt/k8s/traefik1.7.9/{{ item.dest }}.yaml"
+      loop:
+        - { src: traefik-rbac, dest: traefik-rbac }
+        - { src: traefik-deployment, dest: traefik-deployment }
+        
+    - name: kubectl apply -f /opt/k8s/traefik1.7.9/.
+      shell: "kubectl apply -f /opt/k8s/traefik1.7.9/."
+
+  when: ansible_hostname == 'c1'

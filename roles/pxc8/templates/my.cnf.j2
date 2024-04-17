@@ -1,0 +1,50 @@
+{% set cluster_address=[] %}
+# 定义空列表
+
+{% for host in groups['pxc'] %}
+# groups['pxc']指的是/etc/ansible/hosts中的[pxc]组
+
+{% set pxc_ip = hostvars[host]['ansible_default_ipv4']['address'] %}
+{% set _ = cluster_address.append("{}".format(pxc_ip)) %}
+{% endfor %}
+[client]
+socket=/var/lib/mysql/mysql.sock
+#ssl-ca=/etc/mysql/certs/ca.pem
+#ssl-cert=/etc/mysql/certs/server-cert.pem
+#ssl-key=/etc/mysql/certs/server-key.pem
+
+[mysqld]
+server-id={{ server_id }}
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid
+binlog_expire_logs_seconds=604800
+wsrep_provider=/usr/lib64/galera4/libgalera_smm.so
+wsrep_cluster_address=gcomm://{{ cluster_address | join(',') }}
+# join(',') 把多个cluster_address用逗号连接到一起
+binlog_format=ROW
+wsrep_slave_threads=8
+wsrep_log_conflicts
+innodb_autoinc_lock_mode=2
+wsrep_cluster_name={{ pxcClusterName }}
+wsrep_node_name={{ ansible_hostname }}
+pxc_strict_mode=ENFORCING
+wsrep_sst_method=xtrabackup-v2
+
+wsrep_node_address={{ ansible_default_ipv4.address }}
+#wsrep_provider_options="socket.ssl=yes;socket.ssl_ca=/etc/mysql/certs/ca.pem;socket.ssl_cert=/etc/mysql/certs/server-cert.pem;socket.ssl_key=/etc/mysql/certs/server-key.pem"
+wsrep_provider_options="socket.ssl_key=server-key.pem;socket.ssl_cert=server-cert.pem;socket.ssl_ca=ca.pem"
+#ssl-ca=/etc/mysql/certs/ca.pem
+#ssl-cert=/etc/mysql/certs/server-cert.pem
+#ssl-key=/etc/mysql/certs/server-key.pem
+
+[sst]
+encrypt=4
+ssl-key=server-key.pem
+ssl-ca=ca.pem
+ssl-cert=server-cert.pem
+#ssl-ca=/etc/mysql/certs/ca.pem
+#ssl-cert=/etc/mysql/certs/server-cert.pem
+#ssl-key=/etc/mysql/certs/server-key.pem
+

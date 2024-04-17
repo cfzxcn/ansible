@@ -1,0 +1,26 @@
+- name: Replace /etc/hosts
+  copy: src="../../init/files/hosts" dest=/etc/hosts backup=yes
+
+- name: docker pull haproxy
+  shell: "docker pull haproxy"
+
+- name: mkdir /opt/haproxy
+  file: path="/opt/haproxy" state=directory
+
+- name: Copy haproxy.cfg to /opt/haproxy/haproxy.cfg
+  template: src=haproxy.cfg.j2 dest=/opt/haproxy/haproxy.cfg
+  notify: "docker restart cfhaproxy && docker logs -f cfhaproxy"
+
+- name: '! docker ps | grep haproxy &>/dev/null && docker run -d --restart=always --hostname haproxy --name cfhaproxy --net host -v /opt/haproxy:/usr/local/etc/haproxy haproxy && docker logs -f cfhaproxy'
+  shell: "! docker ps | grep haproxy &>/dev/null && docker run -d --restart=always --hostname haproxy --name cfhaproxy --net host -v /opt/haproxy:/usr/local/etc/haproxy haproxy"
+#  args:
+#    executable: /bin/bash
+
+#- name: docker create --name cfhaproxy --net host -v /opt/haproxy:/usr/local/etc/haproxy haproxy
+#  shell: "docker create --name cfhaproxy --net host -v /opt/haproxy:/usr/local/etc/haproxy haproxy"
+#
+#- name: docker update --restart=always cfhaproxy
+#  shell: "docker update --restart=always cfhaproxy"
+#
+#- name: docker restart cfhaproxy && docker logs -f cfhaproxy
+#  shell: "docker restart cfhaproxy && docker logs -f cfhaproxy"

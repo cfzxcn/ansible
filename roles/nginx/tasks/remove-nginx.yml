@@ -1,0 +1,32 @@
+---
+#- hosts: compute4
+- hosts: 192.168.1.112
+  vars:
+#    - BASEDIR: /usr/local/mysql
+    - BASEDIR: /opt/nginx
+#    - softName: httpd
+    - softName: nginx
+
+  tasks:
+  - name: stop {{ softName }} service 
+    shell: systemctl stop {{ softName }} && systemctl disable {{ softName }} && systemctl daemon-reload
+
+  - name: yum remove {{ softName }}
+    yum: "name={{ softName }} state=absent"
+
+  - name: Delete {{ softName }} user 
+    user: name={{ softName }} state=absent remove=yes
+    ignore_errors: true
+
+  - name: delete {{ softName }} files and dir
+    file: path={{ item }} state=absent
+    with_items:
+      - "{{ BASEDIR }}"
+      - /etc/{{ softName }}
+      - /var/log/{{ softName }}
+      - /var/cache/nginx
+      - /tmp/nginx-1.24.0
+      - /tmp/nginx-1.24.0.tar.gz
+      - /etc/profile.d/nginx.sh
+      - /usr/lib/systemd/system/nginx.service
+      - /usr/share/nginx

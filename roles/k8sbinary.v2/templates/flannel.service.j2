@@ -1,0 +1,20 @@
+[Unit]
+Description=Flanneld overlay address etcd agent
+After=network-online.target network.target
+#After=network.target
+Before=docker.service
+
+[Service]
+Type=notify
+EnvironmentFile={{ kuberPath }}/cfg/flannel
+#EnvironmentFile=-{{ kuberPath }}/cfg/flannel
+#ExecStartPre={{ kuberPath }}/bin/remove-docker0.sh
+#ExecStart={{ kuberPath }}/bin/flanneld ${FLANNEL_ETCD} ${FLANNEL_ETCD_KEY} ${FLANNEL_ETCD_CAFILE} ${FLANNEL_ETCD_CERTFILE} ${FLANNEL_ETCD_KEYFILE}
+ExecStart={{ kuberPath }}/bin/flanneld --ip-masq ${FLANNEL_OPTIONS}
+ExecStartPost={{ kuberPath }}/bin/mk-docker-opts.sh -k DOCKER_NETWORK_OPTIONS -d /run/flannel/subnet.env
+#ExecStartPost={{ kuberPath }}/bin/mk-docker-opts.sh -d /run/flannel/docker
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+#RequiredBy=docker.service

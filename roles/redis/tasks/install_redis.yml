@@ -1,0 +1,73 @@
+- name: yum install gcc-c++
+  yum: name="gcc-c++,make"
+
+- name: Unarchive redis-{{ redisVer }}.tar.gz to clients {{ redisUnarchiveDir }}
+  unarchive:
+    src: "redis-{{ redisVer }}.tar.gz"
+    dest: "{{ redisUnarchiveDir }}"
+
+- name: make && make PREFIX={{ redisInstallDir }} install
+  shell: "make && make PREFIX={{ redisInstallDir }} install"
+  args:
+    chdir: "{{ redisUnarchiveDir }}/redis-7.0.9"
+
+- name: Create {{ redisInstallDir }}/* soft link to /usr/local/bin
+  file:
+    state: link
+#    owner: "{{ elkUser }}"
+#    group: "{{ elkUser }}"
+    src: "{{ redisInstallDir }}/bin/{{ item }}"
+    dest: '/usr/local/bin/{{ item }}'
+  loop:
+    - redis-benchmark
+    - redis-check-aof
+    - redis-check-rdb
+    - redis-cli
+    - redis-sentinel
+    - redis-server
+
+- name: Generate redis7.service and redis7.conf
+  template:
+    src: "{{ item.src }}.j2"
+    dest: "{{ item.dest }}"
+  loop:
+    - { src: 'redis7.conf', dest: '/etc/redis7.conf' }
+    - { src: 'redis7.service', dest: '/usr/lib/systemd/system/redis7.service' }
+
+- name: Start redis7.service and daemon-reload
+  ansible.builtin.service:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "redis7.service"
+
+#- name: config redis cluster.conf
+#  template:
+#    src: '{{ item.src }}'
+#    dest: '{{ redisClusterDir }}/{{ item.dest }}'
+#  with_items:
+#    - { src: redis3000.conf.j2, dest: redis3000.conf }
+#    - { src: templates/redis3001.conf.j2, dest: redis3001.conf }
+#    - { src: templates/redis3002.conf.j2, dest: redis3002.conf }
+#
+#- name: copy redis start files
+#  copy:
+#    src: '{{ item.src }}'
+#    dest: '{{ systemd_basedir }}/{{ item.dest }}'
+#    owner: 'root'
+#    group: 'root'
+#    mode: 0644
+#    backup: no
+#  with_items:
+#    - { src: files/redis3000.service, dest: 'redis3000.service' }
+#    - { src: 'redis3001.service', dest: 'redis3001.service' }
+#    - { src: 'redis3002.service', dest: 'redis3002.service' }
+#
+#- name: copy redis-shutdown files
+#  copy:
+#    src: 'redis-shutdown'
+#    dest: '/usr/libexec/redis-shutdown'
+#    owner: 'root'
+#    group: 'root'
+#    mode: 0644
+#    backup: no

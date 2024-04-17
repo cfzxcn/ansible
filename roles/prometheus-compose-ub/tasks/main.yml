@@ -1,0 +1,11 @@
+- name: mkdir /opt/prometheus-compose
+  file: path="/opt/prometheus-compose" state=directory
+
+- name: Copy prometheus-compose all files
+  copy: src='./' dest="/opt/prometheus-compose"
+
+- name: docker compose up -d
+  shell: "docker compose up -d"
+  args:
+    chdir: "/opt/prometheus-compose"
+

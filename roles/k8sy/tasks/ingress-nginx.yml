@@ -1,0 +1,26 @@
+- name: kubectl label nodes '{{ ansible_fqdn }}' node-role=ingress
+  shell: "kubectl label nodes {{ ansible_fqdn }} node-role=ingress"
+  when: ansible_hostname == 'c7' or ansible_hostname == 'c8'
+
+- name:
+  block:
+    - name: mkdir /opt/k8s -p
+      file: path="/opt/k8s" state=directory recurse=yes
+
+    - name: Generate ingress-nginx.v1.6.4.yaml
+      template:
+        src: "{{ item.src }}.yaml.j2"
+        dest: "/opt/k8s/{{ item.dest }}.yaml"
+      loop:
+#        - { src: kube-flannel.0.23.0, dest: kube-flannel.0.23.0 }
+#        - { src: calico.3.26.1, dest: calico }
+#        - { src: dashboard.2.7.0, dest: dashboard }
+#        - { src: metrics.0.6.4, dest: metrics.0.6.4 }
+#        - { src: admin, dest: admin }
+        - { src: ingress-nginx.v1.6.4, dest: ingress-nginx.v1.6.4 }
+#    - name: kubectl apply -f /opt/k8s/kube-flannel.0.23.0.yaml
+#      shell: "kubectl apply -f /opt/k8s/kube-flannel.0.23.0.yaml"
+    - name: kubectl apply -f /opt/k8s/ingress-nginx.v1.6.4.yaml
+      shell: "kubectl apply -f /opt/k8s/ingress-nginx.v1.6.4.yaml"
+
+  when: ansible_hostname == 'c1'

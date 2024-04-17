@@ -1,0 +1,19 @@
+---
+- hosts: kylin
+  tasks:
+
+  - name: Stop redis7.service
+    service: name=redis7.service state=stopped
+  
+  - name: rm -rf {{ redisUnarchiveDir }}/redis-7.0.9 {{ redisInstallDir }} /etc/redis7.conf /usr/lib/systemd/system/redis7.service
+    file:
+      path: "{{ item }}"
+      state: absent
+    loop:
+      - "{{ redisUnarchiveDir }}/redis-7.0.9"
+      - "{{ redisInstallDir }}"
+      - /etc/redis7.conf
+      - /usr/lib/systemd/system/redis7.service
+
+#  - name: Delete redis7 group
+#    group: name=redis7 state=absent

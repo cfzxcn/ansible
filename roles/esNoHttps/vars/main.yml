@@ -1,0 +1,5 @@
+elasticVer: 8.7.0
+elkUser: elkuser
+elasticInstallDir: /home/elkuser
+pathData: /opt/elastic/data
+pathCert: /opt/elastic/cert

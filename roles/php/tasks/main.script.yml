@@ -1,0 +1,62 @@
+#---
+#- hosts: sql
+#  tasks:
+#- name: 安装常用软件包及依赖
+#  yum: name=vim,yum-utils,lrzsz,net-tools,wget,curl,bash-completion,rsync,gcc,gcc-c++,unzip,git,autoconf,cmake,openssl,openssl-devel,pcre,pcre-devel,zlib,zlib-devel,gd-devel,libxml2-devel,bzip2-devel,gnutls-devel,ncurses-devel,bison,bison-devel,openldap,openldap-devel,libcurl-devel,libevent,libevent-devel,expat-devel,numactl state=latest
+
+- name: Install php through shell script
+  script: phpyum.sh
+  args:
+    creates: /usr/local/php/bin/php-fpm
+# 这里加了个条件判断，当/usr/local/php/bin/php-fpm存在时，就不执行phpyum.sh
+ 
+- name: start php-fpm and nginx service
+  block:
+    - service: 
+        name: php-fpm
+        state: started
+        enabled: yes
+    - service: name=nginx state=started args=creates=/var/run/nginx.pid
+# 定义block任务块，该block任务块包含2个任务，第2个任务是启动nginx，启动nginx时要做判断，当nginx.pid存在时，就不再启动nginx
+
+#- name: Generate "{{ phpInstallDir}}/etc/php-fpm.d/www.conf" to client
+#  template:
+#    src: www746.conf.j2
+#    dest: "{{ phpInstallDir}}/etc/php-fpm.d/www.conf"
+#    backup: yes
+#    force: yes
+#  notify: restart nginx
+
+- name: Generate "{{ phpInstallDir}}/etc/php.ini and {{ phpInstallDir}}/etc/php-fpm.d/www.conf" to client
+  template:
+    src: "{{ item.src}}"
+    dest: "{{ phpInstallDir}}/{{ item.dest }}"
+    backup: yes
+    force: yes
+  loop: 
+    - { src: 'php746.ini.j2', dest: 'etc/php.ini'}
+    - { src: 'www746.conf.j2', dest: 'etc/php-fpm.d/www.conf'}
+  tags: name=cpphpconf
+  notify: restart nginx
+
+- name: start php
+  systemd: name=php-fpm746 state=started enabled=yes
+
+- name: Generate /etc/php-fpm.d/www.conf to client
+  template: 
+    src: www.conf.j2
+    dest: /etc/php-fpm.d
+    force: yes
+  notify: restart nginx
+
+
+
+
+
+
+
+
+
+
+
+

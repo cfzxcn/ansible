@@ -1,0 +1,61 @@
+- name: mkdir /root/.kube -p
+  file: path="/root/.kube" state=directory recurse=yes
+
+- name:
+  block:
+    - name: Copy {{ kuberPath }}/admin.conf to all nodes
+      shell: "for i in {{ nodeList }};do rsync -az /etc/kubernetes/admin.conf $i:/root/.kube/config;done"
+
+    - name: chown $(id -u):$(id -g) $HOME/.kube/config
+      shell: "chown $(id -u):$(id -g) $HOME/.kube/config"
+#      args:
+#        executable: /bin/bash
+
+#    - name: Copy /etc/kubernetes/admin.conf to /root/.kube/config
+#      copy:
+#        owner: root
+#        group: root
+#        remote_src: yes
+#        src: "/etc/kubernetes/admin.conf"
+#        dest: /root/.kube/config
+  when: ansible_hostname == 'c1'
+
+#- name:
+#  block:
+#    - name: mkdir /opt/k8s -p
+#      file: path="/opt/k8s" state=directory recurse=yes
+#
+#    - name: Generate  admin.yaml
+#      template:
+#        src: "{{ item.src }}.yaml.j2"
+#        dest: "/opt/k8s/{{ item.dest }}.yaml"
+#      loop:
+##        - { src: kube-flannel.0.23.0, dest: kube-flannel.0.23.0 }
+##        - { src: calico.3.26.1, dest: calico }
+##        - { src: dashboard.2.7.0, dest: dashboard }
+##        - { src: metrics.0.6.4, dest: metrics.0.6.4 }
+#        - { src: admin, dest: admin }
+##        - { src: ingress-nginx.v1.6.4, dest: ingress-nginx.v1.6.4 }
+#        
+##    - name: kubectl apply -f /opt/k8s/kube-flannel.0.23.0.yaml
+##      shell: "kubectl apply -f /opt/k8s/kube-flannel.0.23.0.yaml"
+#
+##    - name: kubectl apply -f /opt/k8s/ingress-nginx.v1.6.4.yaml
+##      shell: "kubectl apply -f /opt/k8s/ingress-nginx.v1.6.4.yaml"
+#
+##    - name: kubectl apply -f /opt/k8s/calico.yaml
+##      shell: "kubectl apply -f /opt/k8s/calico.yaml"
+##
+##    - name: kubectl apply -f /opt/k8s/metrics.0.6.4.yaml
+##      shell: "kubectl apply -f /opt/k8s/metrics.0.6.4.yaml"
+##
+##    - name: kubectl apply -f /opt/k8s/dashboard.yaml
+##      shell: "kubectl apply -f /opt/k8s/dashboard.yaml"
+##
+#    - name: kubectl create -f /opt/k8s/admin.yaml
+#      shell: "kubectl create -f /opt/k8s/admin.yaml"
+##
+##    - name: kubectl apply -f https://addons.kuboard.cn/kuboard/kuboard-v3-swr.yaml
+##      shell: "kubectl apply -f https://addons.kuboard.cn/kuboard/kuboard-v3-swr.yaml"
+#
+#  when: ansible_hostname == 'c7' or ansible_hostname == 'c8'

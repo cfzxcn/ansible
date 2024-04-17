@@ -1,0 +1,6 @@
+
+	当前主机的主机名为：	{{ ansible_fqdn }}
+	当前主机的ip地址是：	{{ ansible_default_ipv4.address }}
+	当前主机的gateway是：	{{ ansible_default_ipv4['gateway'] }}
+	当前主机的网卡名为：	{{ ansible_default_ipv4['interface'] }}
+

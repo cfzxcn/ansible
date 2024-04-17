@@ -1,0 +1,91 @@
+- name: Install nginx dependence
+  yum: name=gcc,gcc-c++,make,openssl-devel,pcre-devel,zlib-devel,wget state=latest
+  tags: dep
+
+    #- name: Download nginx-{{ ngVer }}
+    #  get_url: url=http://nginx.org/download/nginx-{{ ngVer }}.tar.gz dest={{ UnarchiveDir }}
+
+- name: Unarchive nginx-{{ ngVer }}.tar.gz
+  unarchive:
+    src: roles/nginx_compile/files/nginx-{{ ngVer }}.tar.gz
+    dest: "{{ UnarchiveDir }}"
+      #    copy: no
+      #  ignore_errors: true
+
+- name: create ngixn group
+  shell: group_count=$(grep -w nginx /etc/group | wc -l) && [ ${group_count} -eq 0 ] && groupadd -r nginx || break
+
+- name: create ngixn user
+  shell: user_count=$(grep -w nginx /etc/passwd | wc -l) && [ ${user_count} -eq 0 ] && useradd -r -g nginx -s /sbin/nologin -M nginx || break
+
+- name: configure nginx
+  shell: |
+    ./configure --prefix={{ ngInstallDir }} \
+    --conf-path={{ ngInstallDir }}/conf/nginx.conf --user=nginx --group=nginx \
+    --error-log-path=/var/log/nginx/error.log --http-log-path=/var/log/nginx/access.log \
+    --pid-path=/var/run/nginx.pid --lock-path=/var/lock/nginx.lock \
+    {{ ngModule }} \
+    --add-module={{ UnarchiveDir }}/fastdfs-nginx-module-1.24/src/
+  args:
+    chdir: "{{ UnarchiveDir }}/nginx-{{ ngVer }}"
+# 增加--add-module={{ UnarchiveDir }}/fastdfs-nginx-module-1.24/src/行，即可在编译时添加fastdfs的nginx模块，当然，必须执行ansible-playbook fastdfs.yml -v后再安装nginx才行，因为ansible-playbook fastdfs.yml -v后才会有{{ UnarchiveDir }}/fastdfs-nginx-module-1.24/src/
+
+- name: make && make install nginx
+  shell: "make -j2 && make install -j2"
+  args:
+    chdir: "{{ UnarchiveDir }}/nginx-{{ ngVer }}"
+
+- name: copy index.html to client
+  block:
+    - template:
+        src: roles/nginx_compile/templates/index.html.j2
+        dest: "{{ ngInstallDir }}/html/index.html"
+        backup: yes
+# 上三行必须要缩进，否则报错
+    - shell: "echo '<?php phpinfo();' > {{ ngInstallDir }}/html/phpinfo.php"
+#- name: ls default.conf
+#  shell: ls "{{ ngInstallDir }}"/conf.d/default.conf.original
+#  register: original
+#  ignore_errors: true
+#
+#- name: mv default.conf
+#  shell: mv "{{ ngInstallDir }}"/conf.d/default.conf{,.original}
+#  when: original is failure
+- name: Set nginx PATH
+  shell: echo "export PATH={{ ngInstallDir }}/sbin:$PATH" > /etc/profile.d/nginx.sh && source /etc/profile.d/nginx.sh
+  args:
+    executable: /bin/bash    
+
+- name: Generate /usr/lib/systemd/system/nginx.service
+  template:
+    src: roles/nginx_compile/templates/nginx.service.j2
+    dest: /usr/lib/systemd/system/nginx.service
+  
+- name: Generate nignx.conf to client
+  template:
+    src: roles/nginx_compile/templates/nginx.conf.j2
+    dest: "{{ ngInstallDir }}/conf/nginx.conf"
+
+- name: mkdir {{ ngInstallDir }}/conf.d
+  file: "path={{ ngInstallDir }}/conf/conf.d state=directory"
+
+- name: Generate "{{ ngInstallDir }}/conf/conf.d/st.conf" and fastdfs.conf to client
+  template:
+    src: "roles/nginx_compile/templates/{{ item }}.j2"
+    dest: "{{ ngInstallDir }}/conf/conf.d/{{ item }}"
+  loop:
+    - ng.conf
+    - fastdfs.conf
+  notify: restart nginx
+# 如果不配置fastdfs，就把- fastdfs.conf注释掉
+
+- name: start nginx service
+  service: name=nginx state=started enabled=yes
+#  shell: "{{ ngInstallDir }}/sbin/nginx"
+#    name: nginx
+#    state: started
+#    enabled: yes
+#      - shell: /usr/sbin/nginx
+#        args:
+#          creates: /run/nginx.pid
+# 执行一个判断，当/run/nginx.pid存在时，就不再执行/usr/sbin/nginx

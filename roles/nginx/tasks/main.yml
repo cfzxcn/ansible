@@ -1,0 +1,59 @@
+#- hosts: sql
+#  gather_facts: yes
+#  vars:
+#    http_port: 82
+
+#  tasks:
+- name: mv OpenStack-train.repo... to /tmp
+  shell: "cd /etc/yum.repos.d/ && if [ -f CentOS-OpenStack-train.repo ];then mv CentOS-QEMU-EV.repo CentOS-Ceph-Nautilus.repo CentOS-NFS-Ganesha-28.repo CentOS-Storage-common.repo CentOS-OpenStack-train.repo /tmp && yum remove -y centos-release-openstack-train;fi"
+#要把上方的仓库删除，否则对yum安装nginx有影响，装完，剧本start时会有报错，但不影响使用
+- name: Add nginx repo
+  yum_repository: 
+    name: nginx-stable
+    description: nginx stable repo
+    baseurl: 'http://nginx.org/packages/centos/$releasever/$basearch/'
+    gpgcheck: yes
+    enabled: yes
+    gpgkey: https://nginx.org/keys/nginx_signing.key
+  tags:
+    - add nginx repo
+
+- name: Yum Install Nginx
+  yum: name=nginx state=latest
+  tags: install nginx
+  ignore_errors: true
+
+- name: copy index.html to client
+  template:
+    src: index.html.j2
+    dest: /usr/share/nginx/html/index.html
+    backup: yes
+
+- name: start nginx service
+  service:
+    name: nginx
+    state: started
+    enabled: yes
+  ignore_errors: true
+#     - shell: /usr/sbin/nginx
+#       args:
+#         creates: /run/nginx.pid
+#执行一个判断，当/run/nginx.pid存在时，就不再执行/usr/sbin/nginx
+- name: ls default.conf
+  shell: "ls /etc/nginx/conf.d/default.conf.original &>/dev/null"
+  register: original
+  ignore_errors: true
+
+- name: mv default.conf
+  shell: "mv /etc/nginx/conf.d/default.conf{,.original}"
+  when: original is failure
+
+- name: copy nignx configuration file to client
+  template:
+    src: ng.conf.j2
+    dest: /etc/nginx/conf.d/www.st.com.conf
+  notify: restart nginx
+
+#handlers:
+#  - name: restart nginx
+#    service: name=nginx state=restarted

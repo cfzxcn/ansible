@@ -1,0 +1,20 @@
+KUBE_CONTROLLER_MANAGER_OPTS="--secure-port=10257 \
+--bind-address=127.0.0.1 \
+--kubeconfig={{ kuberPath }}/cfg/kube-controller-manager.kubeconfig \
+--service-cluster-ip-range={{ serviceIPRange }} \
+--cluster-name=kubernetes \
+--cluster-signing-cert-file={{ kuberPath }}/ssl/ca.pem \
+--cluster-signing-key-file={{ kuberPath }}/ssl/ca-key.pem \
+--allocate-node-cidrs=true \
+--cluster-cidr={{ podIPRange }} \
+--cluster-signing-duration=876000h \
+--root-ca-file={{ kuberPath }}/ssl/ca.pem \
+--service-account-private-key-file={{ kuberPath }}/ssl/ca-key.pem \
+--leader-elect=true \
+--feature-gates=RotateKubeletServerCertificate=true \
+--controllers=*,bootstrapsigner,tokencleaner \
+--horizontal-pod-autoscaler-sync-period=10s \
+--tls-cert-file={{ kuberPath }}/ssl/kube-controller-manager.pem \
+--tls-private-key-file={{ kuberPath }}/ssl/kube-controller-manager-key.pem \
+--use-service-account-credentials=true \
+--v=2"

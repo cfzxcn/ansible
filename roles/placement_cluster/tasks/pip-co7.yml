@@ -1,0 +1,10 @@
+- name: copy pip.conf and get-pip.py to all clients
+  copy: 
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
+    - { src: 'get-pip.py', dest: '/tmp' }
+    - { src: 'pip.conf', dest: '/etc' }
+  
+- name: python /tmp/get-pip.py
+  shell: "python /tmp/get-pip.py"

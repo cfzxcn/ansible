@@ -1,0 +1,38 @@
+---
+- hosts: ceph
+  tasks:
+
+  - name: Stop docker.socket
+    service: name=docker.socket state=stopped
+  
+  - name: Yum remove six docker packages
+    ansible.builtin.yum:
+      name: "{{ item }}"
+      state: absent
+    loop:
+      - docker-ce 
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+      - docker-ce-rootless-extras
+  
+  - name: rm -rf /var/lib/docker /var/lib/containerd /etc/docker/daemon.json
+    file:
+      path: "{{ item }}"
+      state: absent
+    loop:
+      - /var/lib/docker
+      - /var/lib/containerd
+      - /etc/docker/daemon.json
+
+  - name: Delete docker group
+    group: name=docker state=absent
+
+  - name: Delete /tmp docker rpms
+    file:
+      path: "/tmp/{{ item }}"
+      state: absent
+    loop:    
+      - containerd.io-1.6.9-3.1.el7.x86_64.rpm
+      - "docker-*.rpm"

@@ -1,0 +1,11 @@
+- name: restart nginx
+  service: name=nginx state=restarted
+
+- name: restart tracker and storage
+  ansible.builtin.service:
+    state: restarted
+    name: "{{ item }}"
+  loop:
+    - fastdfs-tracker.service
+    - fastdfs-storage.service
+  

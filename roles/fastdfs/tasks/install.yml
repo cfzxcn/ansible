@@ -1,0 +1,54 @@
+- name: mkdir {{ basePath }} 
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+  loop:
+    - "{{ basePath }}"
+
+- name: Ganerate  tracker.conf / storage.conf /  client.conf  to /etc/fdfs
+  template:
+    backup: yes
+    src: "{{ item }}.j2"
+    dest: "/etc/fdfs/{{ item }}"
+  loop:
+    - tracker.conf
+    - storage.conf
+    - client.conf
+    - mod_fastdfs.conf
+
+- name: Append tracker_server={{ trackerServer }}:{{ trackerPort }} to /etc/fdfs/storage.conf/mod_fastdfs.conf/client.conf
+  ansible.builtin.lineinfile:
+    backup: yes
+    path: "{{ item }}"
+    line: "tracker_server={{ trackerServer }}:{{ trackerPort }}"
+  with_items:
+    - "/etc/fdfs/storage.conf"
+    - "/etc/fdfs/mod_fastdfs.conf"
+    - "/etc/fdfs/client.conf"
+
+- name: Append {{ ansible_default_ipv4.address }} {{ trackerServer }} to /etc/hosts
+  ansible.builtin.lineinfile:
+    backup: yes
+    path: /etc/hosts
+    line: "{{ item }}"
+  with_items:
+    - "{{ ansible_default_ipv4.address }} {{ trackerServer }}"
+
+- name: Ganerate /usr/lib/systemd/system/fastdfs-tracker.service  and  fastdfs-storage.service
+  template:
+    src: "{{ item }}.j2"
+    dest: "/usr/lib/systemd/system/{{ item }}"
+  loop:
+    - fastdfs-tracker.service
+    - fastdfs-storage.service
+
+- name: Start  fastdfs-tracker.service/fastdfs-storage.service  and daemon-reload
+  ansible.builtin.service:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "{{ item }}"
+  loop:
+    - fastdfs-tracker.service
+    - fastdfs-storage.service

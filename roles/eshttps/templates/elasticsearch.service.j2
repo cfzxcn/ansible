@@ -1,14 +1,31 @@
 [Unit]
-Description=ElasticSearch {{ elasticVer }}
+Description=ElasticSearch-{{ elasticVer }}
 After=network.target
 
 [Service]
 User={{ elkUser }}
-#Type=forking
-LimitNOFILE=100000
-LimitNPROC=100000
+Type=forking
 ExecStart={{ elasticInstallDir }}/es870/bin/elasticsearch -d
-#PrivateTmp=true
+PrivateTmp=true
+
+# 指定此进程可以打开的最大文件数
+LimitNOFILE=65535
+# 指定此进程可以打开的最大进程数
+LimitNPROC=65535
+# 最大虚拟内存
+LimitAS=infinity
+# 最大文件大小
+LimitFSIZE=infinity
+# 超时设置 0-永不超时
+TimeoutStopSec=0
+# SIGTERM是停止java进程的信号
+KillSignal=SIGTERM
+# 信号只发送给给JVM
+KillMode=process
+# java进程不会被杀掉
+SendSIGKILL=no
+# 正常退出状态
+SuccessExitStatus=143
 
 [Install]
 WantedBy=multi-user.target

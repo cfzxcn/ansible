@@ -114,7 +114,6 @@
     src: "restartEs.sh.j2"
     dest: "{{ elasticInstallDir }}/restartEs.sh"
 
-# 以上执行后在所有客户端手动启动：bin/elasticsearch -d
 #- name: Delete elasticsearch.yml and {{ pathData }}
 #  ansible.builtin.file:
 #    path: "{{ item }}"
@@ -123,18 +122,18 @@
 #    - "{{ pathData }}"
 #    - "{{ elasticInstallDir }}/es870/config/elasticsearch.keystore"
 #
-#- name: Copy elasticsearch.service  to /usr/lib/systemd/system/
-#  template: src="elasticsearch.service.j2" dest="/usr/lib/systemd/system/elasticsearch.service"
-## 上下两条不管用，仍然无法启动es
-#- name: Restart elasticsearch.service  and daemon-reload
-#  ansible.builtin.systemd:
-#    state: restarted
-#    enabled: true
-#    daemon_reload: true
-#    name: "elasticsearch.service"
+- name: Copy elasticsearch.service  to /usr/lib/systemd/system/
+  template: src="elasticsearch.service.j2" dest="/usr/lib/systemd/system/elasticsearch.service"
+# 上下两条已经管用，可以成功启动es，原因是改进了elasticsearch.service的写法
+- name: Restart elasticsearch.service  and daemon-reload
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "elasticsearch.service"
 
 #- name: Start elasticsearch
 #  shell: "su - {{ elkUser }} && {{ elasticInstallDir }}/es870/elasticsearch -d"
 #  args:
 #    executable: /bin/bash
-# 以上无法启动，需改进
+# 以上无法启动

@@ -1,3 +1,9 @@
+- name: Set authorized key taken from file
+  ansible.posix.authorized_key:
+    user: elkuser
+    state: present
+    key: "{{ lookup('file', '/home/elkuser/.ssh/id_rsa.pub') }}"
+
 - name: Set esNodeName
   ansible.builtin.hostname:
     name: "{{ esHostname }}"
@@ -99,17 +105,20 @@
     src: "restartEs.sh.j2"
     dest: "{{ elasticInstallDir }}/restartEs.sh"
 
-#- name: Delete elasticsearch.yml and {{ pathData }}
-#  ansible.builtin.file:
-#    path: "{{ item }}"
-#    state: absent
-#  loop:
-#    - "{{ pathData }}"
-#    - "{{ elasticInstallDir }}/es870/config/elasticsearch.keystore"
-#
-#- name: Start elasticsearch
-#  shell: "su - {{ elkUser }} && {{ elasticInstallDir }}/es870/elasticsearch -d"
+      #- name: Delete elasticsearch.yml and {{ pathData }}
+      #  ansible.builtin.file:
+      #    path: "{{ item }}"
+      #    state: absent
+      #  loop:
+      #    - "{{ pathData }}"
+      #    - "{{ elasticInstallDir }}/es870/config/elasticsearch.keystore"
 
+- name: Copy elasticsearch.service  to /usr/lib/systemd/system/
+  template: src="../../eshttps/templates/elasticsearch.service.j2" dest="/usr/lib/systemd/system/elasticsearch.service"
 
-
-
+- name: Restart elasticsearch.service  and  daemon-reload
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "elasticsearch.service"

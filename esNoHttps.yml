@@ -1,6 +1,7 @@
 ---
-- hosts: kylin
-#  remote_user: andy
+- hosts: 192.168.1.112
+  #- hosts: kylin
+  remote_user: elkuser
   gather_facts: true
   ignore_errors: true
   vars_files:

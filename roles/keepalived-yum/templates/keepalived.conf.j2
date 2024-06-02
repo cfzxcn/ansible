@@ -3,37 +3,66 @@
 global_defs {
     router_id cf # 设为相同值
 }
-vrrp_script chk_apiserver {
-    script "/etc/keepalived/check_apiserver.sh" # 对haproxy监控的脚本
-    interval 5 
-    weight -5
-    fall 2
-    rise 1
-}
-#vrrp_script chk_nginx {
-#    script "/etc/keepalived/check_nginx.sh 28443"
-#    interval 2
-#    weight -20
+#vrrp_script chk_apiserver {
+#    script "/etc/keepalived/check_apiserver.sh" # 对haproxy监控的脚本
+#    interval 5 
+#    weight -5
+#    fall 2
+#    rise 1
 #}
-vrrp_instance VI_1 {
-    state BACKUP    # 所有节点都设为BACKUP，不设MASTER，并启用下面的nopreempt，这样可通过priority来抢夺vip
+vrrp_script chk_nginx {
+    script "/etc/keepalived/check_nginx.sh 7189"
+    interval 2  #  每隔2秒触发
+    weight 1  #  权重
+}
+vrrp_instance VI_1 {  # 实例名称，可自定义，同一组主机的值设为相同
+    state {{ role1 }}
     interface ens33
     mcast_src_ip {{ ansible_default_ipv4.address }}
-    virtual_router_id {{ VRID }}  # 虚拟路由器id，各主机此值设为不同
-    priority {{ keepPriority }}  # 优先级，不同主机优先级可不同
-    nopreempt
-    advert_int 2
+    virtual_router_id 51  # 虚拟路由器id，分组用。同一组主机的值设为相同。如要设置多个vip，可在此组设置分组
+    priority {{ keepPriority1 }}  # 优先级，不同主机优先级不同，主高于备
+    nopreempt  # 非抢占模式。kp故障转移时，假设原有主服务器恢复后，按照默认规则，仍会由原来的主服务器提供服务，即会把vip漂移回主服务器，会出现1-5秒的服务暂停，如希望原有的备机成为主服务器后，就一直使用备机，即使主恢复后，主也会降级为从，不会发生vip的又一次漂移，就可以用nopreempt
+    advert_int 2 # 每2秒发一次心跳包
     authentication {
         auth_type PASS
         auth_pass cf # 指定验证密码，同一集群的主机此值必须相同
     }
     virtual_ipaddress {
-        {{ k8svip }} dev ens33 label ens33:1  # 指定vip，同一集群的主机此值必须相同
-    }
-    track_script {
-      chk_apiserver 
+        {{ nginxLbVip1 }} dev ens33 label ens33:1  # 指定vip，同一集群的主机此值必须相同
     }
 #    track_script {
-#      chk_nginx 
+#      chk_apiserver 
 #    }
+    track_script {  #  激活追踪脚本
+      chk_nginx 
+    }
 }
+# VI_1和VI_2互为主备，可以用运营商或机房的dns服务器为VI_1和VI_2的两个vip用轮询的方式提供lb,这样通过dns轮询的特性均匀的把用户访问请求进行分摊。即使VI_1或VI_2出现了宕机，此时另一个服务器相当于同时持有两个vip，也能正常提供服务。
+
+vrrp_instance VI_2 {  # 实例名称，可自定义，同一组主机的值设为相同
+    state {{ role2 }}
+    interface ens33
+    mcast_src_ip {{ ansible_default_ipv4.address }}
+    virtual_router_id 52  # 虚拟路由器id，分组用。同一组主机的值设为相同。如要设置多个vip，可在此组设置分组
+    priority {{ keepPriority2 }}  # 优先级，不同主机优先级不同，主高于备
+    nopreempt  # 非抢占模式。kp故障转移时，假设原有主服务器恢复后，按照默认规则，仍会由原来的主服务器提供服务，即会把vip漂移回主服务器，会出现1-5秒的服务暂停，如希望原有的备机成为主服务器后，就一直使用备机，即使主恢复后，主也会降级为从，不会发生vip的又一次漂移，就可以用nopreempt
+    advert_int 2 # 每2秒发一次心跳包
+    authentication {
+        auth_type PASS
+        auth_pass cf # 指定验证密码，同一集群的主机此值必须相同
+    }
+    virtual_ipaddress {
+        {{ nginxLbVip2 }} dev ens33 label ens33:1  # 指定vip，同一集群的主机此值必须相同
+    }
+#    track_script {
+#      chk_apiserver 
+#    }
+    track_script {  #  激活追踪脚本
+      chk_nginx 
+    }
+}
+
+# 以上脚本测试成功，1.220上nginx -s stop后，220上的vip去除，这是正常的，2个vip都在1.3上，访问http://192.168.1.100:7189/，和http://192.168.1.101:7189/均成功！
+重启1.220上的nginx后，仍然维持以上状态，因为配置了nopreempt；
+
+# 1.3上nginx -s stop后，220上systemctl start keepalived后，1.3上的vip去除，这是正常的，2个vip都漂移回了1.220上，访问http://192.168.1.100:7189/，和http://192.168.1.101:7189/均成功！

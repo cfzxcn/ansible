@@ -1,0 +1,91 @@
+- name: Generate /etc/hosts
+  copy: src="/root/playbook/roles/init/files/hosts" dest=/etc/hosts backup=yes
+
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ hostName }}"
+    use: systemd
+
+- name: Generate all nodes's ssh-keygen
+  shell: '[ -f ~/.ssh/id_rsa ] || ssh-keygen -t rsa -q -N "" -f ~/.ssh/id_rsa'
+
+- name: sshpass -p "CFzx5488" ssh-copy-id -o StrictHostKeyChecking=no {{ hostName }}
+  shell: "for i in ub22 es-node1.st.com es-node2.st.com es-node3.st.com es-node4.st.com;do sshpass -p 'CFzx5488' ssh-copy-id -o StrictHostKeyChecking=no $i;done"
+
+- name: scandisk
+  shell: "echo - - - > /sys/class/scsi_host/host0/scan;echo - - - > /sys/class/scsi_host/host1/scan;echo - - - > /sys/class/scsi_host/host2/scan"
+# 执行下条语句前要先添加一块硬盘
+
+- name: Create a xfs filesystem on /dev/sdb
+  community.general.filesystem:
+    fstype: xfs
+    dev: /dev/sdb
+
+- name: Create Group minio
+  user: name=minio system=yes
+
+- name: Create User minio
+  user: name=minio group=minio system=yes shell=/sbin/nologin create_home=false
+      
+- name: mkdir /data
+  file: path="/data" state=directory owner=minio group=minio
+
+- name: Mount /dev/sdb to /data
+  ansible.posix.mount:
+    path: /data
+    src: /dev/sdb
+    fstype: xfs
+    state: mounted
+# 要在挂载前先创建/data,如果先mkdir -p /data/minio{1..4}再mount,将会覆盖/data/minio{1..4}
+
+- name: mkdir -p /data/minio{1..4} 
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    owner: minio
+    group: minio  
+  loop:
+    - "/data/minio1"
+    - "/data/minio2"
+    - "/data/minio3"
+    - "/data/minio4"
+
+- name: Copy minio to /usr/local/bin
+  copy: src=minio dest=/usr/local/bin/minio mode=a+x
+
+- name: Ganerate /etc/default/minio 
+  template:
+#    backup: yes
+    src: "{{ item }}.j2"
+    dest: "/etc/default/minio"
+  loop:
+    - minio
+  notify: restart minio
+
+      #- name: Append {{ ansible_default_ipv4.address }} {{ trackerServer }} to /etc/hosts
+      #  ansible.builtin.lineinfile:
+      #    backup: yes
+      #    path: /etc/hosts
+      #    line: "{{ item }}"
+      #  with_items:
+      #    - "{{ ansible_default_ipv4.address }} {{ trackerServer }}"
+
+- name: Ganerate /usr/lib/systemd/system/minio.service
+  template:
+    src: "{{ item }}.j2"
+    dest: "/usr/lib/systemd/system/{{ item }}"
+  loop:
+    - minio.service
+  notify: restart minio
+
+- name: Start  minio.service  and  daemon-reload
+  ansible.builtin.service:
+    state: started
+    enabled: true
+    daemon_reload: true
+    name: "{{ item }}"
+  loop:
+    - minio.service
+
+

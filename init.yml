@@ -1,5 +1,5 @@
 ---
-- hosts: kylin
+- hosts: bs
 #  remote_user: andy
   gather_facts: true
   ignore_errors: true

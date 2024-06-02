@@ -1,0 +1,19 @@
+- name: Replace 192.168.1.112 dfs.cn\n192.168.1.113 dfs.com  to /etc/hosts
+  ansible.builtin.replace:
+    backup: yes
+    path: /etc/hosts
+    regexp: '.*dfs.*'
+    replace: "192.168.1.112 dfs.cn\n192.168.1.113 dfs.com"
+
+- name: Replace tracker_server={{ trackerServer }}:{{ trackerPort }} at /etc/fdfs/storage.conf / mod_fastdfs.conf /client.conf
+  ansible.builtin.replace:
+    backup: yes
+    path: "{{ item }}"
+    regexp: '^tracker_server.*'
+    replace: "tracker_server=dfs.cn:{{ trackerPort }}\ntracker_server=dfs.com:{{ trackerPort }}"
+  with_items:
+    - "/etc/fdfs/storage.conf"
+    - "/etc/fdfs/mod_fastdfs.conf"
+    - "/etc/fdfs/client.conf"
+  notify: restart tracker and storage
+

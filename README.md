@@ -13,6 +13,8 @@
 四、实现完美编译安装 nginx1.24.0，并可完美卸载
 
 五、实现yum部署 httpd 和 nginx，并可完美卸载
+    yum/apt安装nginx最新版本，可在debian和redhat系列的linux发行版安装，不用其它设置，程序会自动选择，2024/05/31在centos7及ubuntu22.04测试通过
+
 
 六、实现yum部署memcached，并可完美卸载
 
@@ -22,6 +24,10 @@
 
 八、实现了yum安装php7.4.33，但拷贝2个配置文件模块出错，原因未知，但不影响使用。实现了yum安装的卸载
 
+九、四台服务器（操作系统均为：Kylin Linux Advanced Server release V10 (Lance)，zh_CN.UTF-8）批量部署Minio分布式对象存储集群，实现方法：ansible-playbook minio.yml -v
+之后在任一主机或多主机执行：ansible-playbook nginx.yml -v（apt/yum安装nginx最新版本），实现对4台minio主机的nginx负载均衡，http://部署nginx的主机ip:9002/即可访问minio的web界面；http://部署nginx的主机ip:7188/即可访问nginx的测试页；
+
+十、实现了yum/apt安装keepalived高可用，可根据操作系统是redhat系列或debian系统自动选择使用yum或apt命令，在CentOS7和ub22上测试通过；且keepalived+nginx实现了双vip负载均衡+高可用
 
 co7上实现OpenStack train版:
 

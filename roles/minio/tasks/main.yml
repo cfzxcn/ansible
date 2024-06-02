@@ -1,0 +1,6 @@
+#- include_tasks: env.yml
+#- include_tasks: roles/nginx_compile/tasks/main.yml
+- include_tasks: install.yml
+- include_tasks: mc.yml
+# 执行以上三步可以单机部署fastdfs，加上下一步可部署fastdfs集群
+#- include_tasks: cluster.yml

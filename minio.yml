@@ -1,0 +1,12 @@
+---
+#- hosts: 192.168.1.113
+- hosts: kylin
+#  remote_user: andy
+  gather_facts: true
+  ignore_errors: true
+  vars_files:
+    - group_vars/main.yml
+
+  roles:
+    - role: minio
+      tags: ["minio"]

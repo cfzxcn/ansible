@@ -1,5 +1,5 @@
 ---
-- hosts: sql
+- hosts: 192.168.1.79
 #  vars:
 #    - src_mysql: mysql-5.7.31-linux-glibc2.12-x86_64
 #    - BASEDIR: /usr/local/mysql

@@ -1,0 +1,118 @@
+- name: Set esNodeName
+  ansible.builtin.hostname:
+    name: "{{ esHostname }}"
+    use: systemd
+
+- name: Generate /etc/hosts
+  copy: src="/root/playbook/roles/init/files/hosts" dest=/etc/hosts backup=yes
+
+- name: sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no {{ hostName }}
+  shell: "for i in es1 es2 es3;do sshpass -pCFzx5488 ssh-copy-id -o StrictHostKeyChecking=no $i;done"
+
+- name: sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no {{ hostName }}
+  shell: "for i in ub22;do sshpass -pcf ssh-copy-id -o StrictHostKeyChecking=no $i;done"
+
+- name: Modity /etc/systemd/system.conf
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/system.conf
+    line: '{{ item }}'
+    backup: yes
+  with_items:
+    - 'DefaultLimitNOFILE=65536'
+    - 'DefaultLimitNPROC=32000'
+    - 'DefaultLimitMEMLOCK=infinity'
+
+- name: ulimit -n 65535
+  shell: "ulimit -n 65535"
+# 需使用root账号
+
+- name: Modity /etc/sysctl.conf
+  ansible.builtin.lineinfile:
+    path: /etc/sysctl.conf
+    line: '{{ item }}'
+    backup: yes
+  with_items:
+    - 'vm.max_map_count = 262144'
+# 上面是永久生效，下面是临时生效
+- name: sysctl -w vm.max_map_count=262144
+  shell: "sysctl -w vm.max_map_count=262144"
+
+- name: sed -ri '/^[^#]*swap/s@^@#@' /etc/fstab
+  lineinfile:
+    dest: /etc/fstab
+    regexp: "(^[^#]*)swap(.*0$)"
+    line: '#\1swap\2'
+    backrefs: yes
+    backup: yes
+
+- name: swapoff
+  shell: "swapoff -a && sysctl -w vm.swappiness=0"
+
+###########################################################################
+
+- name: Create Normal User {{ elkUser }}
+  user: name={{ elkUser }} password={{'cf' | password_hash('sha512')}} state=present
+
+- name: Unarchive elasticsearch-{{ elasticVer }}-linux-x86_64.tar.gz to clients
+  unarchive:
+    owner: "{{ elkUser }}"
+    group: "{{ elkUser }}"
+    src: "../../eshttps/files/elasticsearch-{{ elasticVer }}-linux-x86_64.tar.gz"
+    dest: "{{ elasticInstallDir }}"
+
+- name: Create soft link to {{ elasticInstallDir }}/es870
+  file:
+    state: link
+    owner: "{{ elkUser }}"
+    group: "{{ elkUser }}"
+    src: "{{ elasticInstallDir }}/elasticsearch-{{ elasticVer }}"
+    dest: "{{ elasticInstallDir }}/es870"
+
+- name: mkdir /opt/elastic/data and /var/log/elastic  -p
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    owner: "{{ elkUser }}"
+    group: "{{ elkUser }}"
+  loop:
+    - "{{ pathData }}"
+    - "{{ pathCert }}"
+    - /var/log/elastic
+
+- name: Copy elasticsearch.yml to {{ elasticInstallDir }}/elasticsearch-{{ elasticVer }}/config
+  template:
+    backup: yes
+    owner: "{{ elkUser }}"
+    group: "{{ elkUser }}"
+    src: "{{ item }}.j2"
+    dest: "{{ elasticInstallDir }}/es870/config/{{ item }}"
+# 最后必须要加{{ item }}，即文件名，否则文件无法拷贝到客户端      
+  loop:
+    - 'elasticsearch.yml'
+
+- name: Copy restartEs.sh to {{ elasticInstallDir }}
+  template:
+    owner: "{{ elkUser }}"
+    group: "{{ elkUser }}"
+    mode: a+x
+    src: "restartEs.sh.j2"
+    dest: "{{ elasticInstallDir }}/restartEs.sh"
+
+      #- name: Delete elasticsearch.yml and {{ pathData }}
+      #  ansible.builtin.file:
+      #    path: "{{ item }}"
+      #    state: absent
+      #  loop:
+      #    - "{{ pathData }}"
+      #    - "{{ elasticInstallDir }}/es870/config/elasticsearch.keystore"
+
+- name: Copy elasticsearch.service  to /usr/lib/systemd/system/
+  template: src="../../eshttps/templates/elasticsearch.service.j2" dest="/usr/lib/systemd/system/elasticsearch.service"
+
+- name: Restart elasticsearch.service  and  daemon-reload
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    name: "elasticsearch.service"

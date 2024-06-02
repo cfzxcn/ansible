@@ -1,0 +1,6 @@
+- name: Copy mc to /usr/local/bin
+  copy: src=mc dest=/usr/local/bin/mc mode=a+x
+
+- name: mc --autocompletion
+  shell: "mc --autocompletion"
+

@@ -1,0 +1,6 @@
+- name: Set elkuser authorized key taken from file
+  ansible.posix.authorized_key:
+    user: elkuser
+    state: present
+    key: "{{ lookup('file', '/home/elkuser/.ssh/id_rsa.pub') }}"
+

@@ -1,8 +1,13 @@
 - name:
   block:
     - name: yum install keepalived
-      yum: name=keepalived
+      yum: name=keepalived update_cache=yes state=latest
+      when: ansible_os_family == "RedHat"
     
+    - name: apt install keepalived
+      apt: name=keepalived update_cache=yes state=latest
+      when: ansible_os_family == "Debian"
+
     - name: Copy keepalived.conf to /etc/keepalived/keepalived.conf
       template: 
         src: "{{ item }}.j2"
@@ -24,4 +29,4 @@
     - name: systemctl enable --now keepalived 
       service: name=keepalived state=restarted enabled=yes
 
-  when: ansible_hostname == 'c1' or ansible_hostname == 'c4' or ansible_hostname == 'c6'
+  when: ansible_hostname == 'pxe' or ansible_hostname == 'ub22'

@@ -1,6 +1,6 @@
 ---
 #- hosts: allnode
-- hosts: bs
+- hosts: 192.168.1.111
 #  remote_user: andy
   gather_facts: true
   ignore_errors: true

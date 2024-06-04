@@ -3,11 +3,11 @@
 #    url: {{ item }}
 #    dest: /tmp
 #  loop:
-#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7/x86_64/stable/Packages/containerd.io-1.6.9-3.1.el7.x86_64.rpm }
-#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7/x86_64/stable/Packages/docker-buildx-plugin-0.11.2-1.el7.x86_64.rpm }
-#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7/x86_64/stable/Packages/docker-ce-{{ dockerVer }}.el7.x86_64.rpm }
-#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7/x86_64/stable/Packages/docker-ce-cli-{{ dockerVer }}.el7.x86_64.rpm }
-#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7/x86_64/stable/Packages/docker-compose-plugin-2.6.0-3.el7.x86_64.rpm }
+#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7.el7.x86_64/stable/Packages/containerd.io-1.6.9-3.1.el7.x86_64.rpm }
+#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7.el7.x86_64/stable/Packages/docker-buildx-plugin-0.11.2-1.el7.x86_64.rpm }
+#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7.el7.x86_64/stable/Packages/docker-ce-{{ dockerVer }}.el7.x86_64.rpm }
+#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7.el7.x86_64/stable/Packages/docker-ce-cli-{{ dockerVer }}.el7.x86_64.rpm }
+#    - { https://mirrors.ustc.edu.cn/docker-ce/linux/centos/7.el7.x86_64/stable/Packages/docker-compose-plugin-2.6.0-3.el7.x86_64.rpm }
 
 #- name: Remove docker older version
 #  ansible.builtin.yum:
@@ -23,7 +23,7 @@
 #    - docker-logrotate
 #    - docker-engine
 
-- name: Copy six docker rpms to clients
+- name: Copy six docker rpms to clients for RHEL7
   copy:
     remote_src: false
     src: "{{ item }}"
@@ -32,11 +32,34 @@
   loop:
     - containerd.io-1.6.9-3.1.el7.x86_64.rpm
 #    - docker-buildx-plugin-0.11.2-1.el7.x86_64.rpm  
-    - "docker-ce-{{ dockerVer }}.x86_64.rpm"
-    - "docker-ce-cli-{{ dockerVer }}.x86_64.rpm" 
+    - "docker-ce-{{ dockerVer }}.el7.x86_64.rpm"
+    - "docker-ce-cli-{{ dockerVer }}.el7.x86_64.rpm" 
     - docker-compose-plugin-2.10.2-3.el7.x86_64.rpm
-    - "docker-ce-rootless-extras-{{ dockerVer }}.x86_64.rpm"
-#  ignore_errors: true
+    - "docker-ce-rootless-extras-{{ dockerVer }}.el7.x86_64.rpm"
+  when: ansible_pkg_mgr == "yum"
+
+- name: Copy six docker rpms to clients for RHEL8
+  copy:
+    remote_src: false
+    src: "{{ item }}"
+    dest: "/tmp/{{ item }}"
+  loop:
+    - "containerd.io-1.6.9-3.1.el8.x86_64.rpm"
+    - "docker-ce-{{ dockerVer }}.el8.x86_64.rpm"
+    - "docker-ce-cli-{{ dockerVer }}.el8.x86_64.rpm" 
+    - "docker-compose-plugin-2.27.0-1.el8.x86_64.rpm"
+    - "docker-ce-rootless-extras-{{ dockerVer }}.el8.x86_64.rpm"
+  when: ansible_pkg_mgr != "yum"
+
+- name: Copy deps rpms to clients for Kylin-V10
+  copy:
+    remote_src: false
+    src: "{{ item }}"
+    dest: "/tmp/{{ item }}"
+  loop:
+    - "fuse-overlayfs-0.7.2-6.el7_8.x86_64.rpm"
+    - "slirp4netns-0.4.3-4.el7_8.x86_64.rpm"
+  when: ansible_distribution_version == "V10"
 
 - name: Install three docker Dependency
   ansible.builtin.yum:
@@ -49,10 +72,21 @@
     - slirp4netns
 #  ignore_errors: true
 
-- name: Install six docker rpms from local
+- name: Install five docker rpms from local for RHEL7
   yum:
-    name: "/tmp/containerd.io-1.6.9-3.1.el7.x86_64.rpm,/tmp/docker-ce-{{ dockerVer }}.x86_64.rpm,/tmp/docker-ce-cli-{{ dockerVer }}.x86_64.rpm,/tmp/docker-compose-plugin-2.10.2-3.el7.x86_64.rpm,/tmp/docker-ce-rootless-extras-{{ dockerVer }}.x86_64.rpm"
+    name: "/tmp/containerd.io-1.6.9-3.1.el7.x86_64.rpm,/tmp/docker-ce-{{ dockerVer }}.el7.x86_64.rpm,/tmp/docker-ce-cli-{{ dockerVer }}.el7.x86_64.rpm,/tmp/docker-compose-plugin-2.10.2-3.el7.x86_64.rpm,/tmp/docker-ce-rootless-extras-{{ dockerVer }}.el7.x86_64.rpm"
+  when: ansible_pkg_mgr == "yum"
+
+- name: Install deps rpms from local for Kylin-V10
+  yum:
+    name: "/tmp/fuse-overlayfs-0.7.2-6.el7_8.x86_64.rpm,/tmp/slirp4netns-0.4.3-4.el7_8.x86_64.rpm"
+  when: ansible_distribution_version == "V10"
+
+- name: Install five docker rpms from local for RHEL8
+  yum:
+    name: "/tmp/containerd.io-1.6.9-3.1.el8.x86_64.rpm,/tmp/docker-ce-{{ dockerVer }}.el8.x86_64.rpm,/tmp/docker-ce-cli-{{ dockerVer }}.el8.x86_64.rpm,/tmp/docker-compose-plugin-2.10.2-3.el8.x86_64.rpm,/tmp/docker-ce-rootless-extras-{{ dockerVer }}.el8.x86_64.rpm"
 # 不支持通配符;将这6个包一起安装，不要分开安装，因为有依赖性问题
+  when: ansible_pkg_mgr != "yum"
 
 - name: mkdir /etc/docker
   file: path="/etc/docker" state=directory recurse=yes

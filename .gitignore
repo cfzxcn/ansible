@@ -13,3 +13,4 @@ roles/mongodbrepl/files/
 /roles/k8sbinary/files/*
 roles/k8sbinary/files/kubernetes/*
 
+roles/minio/files/minio

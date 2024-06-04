@@ -5,7 +5,7 @@ minioApiPort: 9090
 minioWebPort: 9002
 
 
-dockerVer: 20.10.24-3.el7
+dockerVer: 20.10.24-3
 
 
 # fastdfs

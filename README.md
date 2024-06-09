@@ -9,27 +9,27 @@ ansible-playbook脚本，用来在linux服务器部署各种应用
 - memcached
 - redis
 - clickhouse
-##容器：
+## 容器：
 - Docker及Docker compose
 - harbor
-##web服务器：
+## web服务器：
 - nginx的apt/yum安装、编译安装
 - httpd
 - jdk和apache-tomcat
 - php
-##消息队列
+## 消息队列
 - rabbitmq
-##集群：
+## 集群：
 - OpenStack train版
 - k8s
 - elasticsearch
 - pcs
 - haproxy
-##存储：
+## 存储：
 - Minio
 - Fastfds
 - ceph
-##监控：
+## 监控：
 - prometheus compose部署
 - zabbix-agent
 

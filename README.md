@@ -5,7 +5,7 @@
 2、bundle部署mysql5.7、8.0，并配置了mysql_secure_installation及远程访问，并可完美卸载
 3、yum成功部署mysql5.7、8.0.34，并配置了mysql_secure_installation及远程访问，并可卸载
 
-MariaDB-10.11.5
+## MariaDB-10.11.5
 实现yum部署，并配置了mysql_secure_installation及远程访问，并可完美卸载，但目前还无法设置密码，新版本特性
 
 二进制部署jdk-11.0.18和apache-tomcat-9.0.34成功，并可卸载

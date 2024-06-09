@@ -1,11 +1,36 @@
-# 功能说明：
+# 介绍
+ansible-playbook脚本，用来在linux服务器部署各种应用
+# 可部署软件：
 
-## MySQL
+- MySQL
+- MariaDB-10.11.5
+- mongodb
+- jdk和apache-tomcat
+- nginx的apt/yum安装、编译安装
+- httpd
+- memcached
+- redis
+- rabbitmq
+- php
+- Docker
+- harbor
+- prometheus
+- OpenStack train版
+- k8s
+- Minio
+- Fastfds
+- clickhouse
+- elasticsearch
+- haproxy
+- pcs
+- pxc
+- prometheus compose部署
+- zabbix-agent
+
 1、二进制部署mysql5.7、8.0，并配置了mysql_secure_installation及远程访问，并可完美卸载
 2、bundle部署mysql5.7、8.0，并配置了mysql_secure_installation及远程访问，并可完美卸载
 3、yum成功部署mysql5.7、8.0.34，并配置了mysql_secure_installation及远程访问，并可卸载
 
-## MariaDB-10.11.5
 实现yum部署，并配置了mysql_secure_installation及远程访问，并可完美卸载，但目前还无法设置密码，新版本特性
 
 二进制部署jdk-11.0.18和apache-tomcat-9.0.34成功，并可卸载

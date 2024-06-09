@@ -14,13 +14,3 @@ server {
 # 此server和upstream web配置load balance，以上配置访问：http://当前主机ip:7189，即：http://192.168.1.220:7189，相当于访问了：http://192.168.1.3:80，测试成功！
 }
 
-server {
-    listen {{ ngPort }};
-    server_name {{ ngServerName }};
-
-    location / {
-        root   /usr/share/nginx/html;
-        index  index.html index.htm;
-    }
-# 此server配置：http://当前主机ip:{{ ngPort }}，即：http://192.168.1.220:7188，访问：/usr/share/nginx/html/index.html，测试成功！
-}

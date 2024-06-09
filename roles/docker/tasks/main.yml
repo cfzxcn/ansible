@@ -49,7 +49,8 @@
     - "docker-ce-cli-{{ dockerVer }}.el8.x86_64.rpm" 
     - "docker-compose-plugin-2.27.0-1.el8.x86_64.rpm"
     - "docker-ce-rootless-extras-{{ dockerVer }}.el8.x86_64.rpm"
-  when: ansible_pkg_mgr != "yum"
+  when: ansible_pkg_mgr == "dnf"
+    #  when: ansible_pkg_mgr != "yum"
 
 - name: Copy deps rpms to clients for Kylin-V10
   copy:
@@ -86,7 +87,7 @@
   yum:
     name: "/tmp/containerd.io-1.6.9-3.1.el8.x86_64.rpm,/tmp/docker-ce-{{ dockerVer }}.el8.x86_64.rpm,/tmp/docker-ce-cli-{{ dockerVer }}.el8.x86_64.rpm,/tmp/docker-compose-plugin-2.10.2-3.el8.x86_64.rpm,/tmp/docker-ce-rootless-extras-{{ dockerVer }}.el8.x86_64.rpm"
 # 不支持通配符;将这6个包一起安装，不要分开安装，因为有依赖性问题
-  when: ansible_pkg_mgr != "yum"
+  when: ansible_pkg_mgr == "dnf"
 
 - name: mkdir /etc/docker
   file: path="/etc/docker" state=directory recurse=yes

@@ -79,6 +79,7 @@
   loop:
     - minio.conf
     - www.st.com.conf
+    - k8s.conf
   notify: restart nginx
 
 #handlers:

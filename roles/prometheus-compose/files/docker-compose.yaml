@@ -10,7 +10,8 @@ networks:
 
 services:
   prometheus:
-    image: prom/prometheus:v2.45.0
+    image: c3:10080/prometheus/prometheus:v2.45.0
+      #    image: prom/prometheus:v2.45.0
     container_name: prometheus
     restart: always
 # 随着docker启动而启动    
@@ -46,7 +47,8 @@ services:
 # cadvisor启动完，再启动prometheus      
 
   alertmanager:
-    image: prom/alertmanager
+    image: c3:10080/prometheus/alertmanager:0.23.0
+#    image: prom/alertmanager
 #    image: prom/alertmanager:v0.25.0
     container_name: alertmanager
     restart: always
@@ -65,7 +67,8 @@ services:
 
   cadvisor:
 # 用来监控容器的
-    image: google/cadvisor:latest
+    image: c3:10080/prometheus/cadvisor:0.32.0
+      #    image: google/cadvisor:latest
     container_name: cadvisor
     restart: always
     volumes:
@@ -81,7 +84,8 @@ services:
       - '8080'
 
   node_exporter:
-    image: prom/node-exporter
+    image: c3:10080/prometheus/node-exporter:1.3.1
+      #    image: prom/node-exporter
 #    image: prom/node-exporter:v1.6.0
     container_name: node-exporter
     restart: always
@@ -101,7 +105,8 @@ services:
       - '9100:9100'
 
   grafana:
-    image: grafana/grafana:10.0.1
+    image: c3:10080/prometheus/grafana:10.0.1
+      #    image: grafana/grafana:10.0.1
     container_name: grafana
     restart: always
     volumes:

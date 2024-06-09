@@ -6,7 +6,7 @@
   loop:
     - "{{ basePath }}"
 
-- name: Ganerate  tracker.conf / storage.conf /  client.conf  to /etc/fdfs
+- name: Ganerate  tracker.conf / storage.conf /  client.conf / mod_fastdfs.conf  to /etc/fdfs
   template:
     backup: yes
     src: "{{ item }}.j2"
@@ -15,7 +15,8 @@
     - tracker.conf
     - storage.conf
     - client.conf
-    - mod_fastdfs.conf
+    - "mod_fastdfs.conf"
+#  必须在/etc/ansible/hosts中为主机定义trackerServer=dfs.com，否则部署时会报：'trackerServer' is undefined      
 
 - name: Append tracker_server={{ trackerServer }}:{{ trackerPort }} to /etc/fdfs/storage.conf/mod_fastdfs.conf/client.conf
   ansible.builtin.lineinfile:

@@ -51,10 +51,15 @@
 #- name: mv default.conf
 #  shell: mv "{{ ngInstallDir }}"/conf.d/default.conf{,.original}
 #  when: original is failure
-- name: Set nginx PATH
-  shell: echo "export PATH={{ ngInstallDir }}/sbin:$PATH" > /etc/profile.d/nginx.sh && source /etc/profile.d/nginx.sh
-  args:
-    executable: /bin/bash    
+
+#- name: Set nginx PATH
+#  shell: echo "export PATH={{ ngInstallDir }}/sbin:$PATH" > /etc/profile.d/nginx.sh && source /etc/profile.d/nginx.sh
+#  args:
+#    executable: /bin/bash    
+
+- name: Create nginx soft link
+  file: src="{{ ngInstallDir }}/sbin/nginx" dest="/usr/bin/nginx" state=link
+    #    force=yes
 
 - name: Generate /usr/lib/systemd/system/nginx.service
   template:

@@ -10,7 +10,7 @@ MariaDB-10.11.5
 
 二进制部署jdk-11.0.18和apache-tomcat-9.0.34成功，并可卸载
 
-实现完美编译安装 nginx1.24.0，并可完美卸载
+实现完美编译安装 nginx1.24.0/1.26.1，并可完美卸载
 
 实现yum部署 httpd 和 nginx，并可完美卸载
     yum/apt安装nginx最新版本，可在debian和redhat系列的linux发行版安装，不用其它设置，程序会自动选择，2024/05/31在centos7及ubuntu22.04测试通过
@@ -26,6 +26,8 @@ MariaDB-10.11.5
 实现了yum/apt安装keepalived高可用，可根据操作系统是redhat系列或debian系统自动选择使用yum或apt命令，在CentOS7和ub22上测试通过；且keepalived+nginx实现了双vip负载均衡+高可用
 
 Docker rpm部署：CentOS7、Kylin-V10测试通过：ansible-playbook docker.yml -v；RHEL8系列版本支持但未测试！
+
+Docker compose部署prometheusv2.45.0，grafana10.0.1，alertmanager0.23.0，node_exporter1.3.1，cAdvisor0.32.0，ub20和centos7测试通过
 
 安装openstack-train源，并通过openstack-train源yum安装rabbitmq-server，并可完美卸载
 

@@ -11,7 +11,7 @@ dockerVer: 20.10.24-3
 # fastdfs
 basePath: /dfsData
 trackerPort: 22122
-httpServerPort: 80
+httpServerPort: 81
 fdfsVer: 6.12.1
 # 这个变量用在两个service中
 UnarchiveDir: /root
@@ -88,7 +88,8 @@ placementName: placement
 placementPort: 8778
 
 # nginx
-ngVer: 1.24.0
+#ngVer: 1.24.0
+ngVer: 1.26.1
 ngInstallDir: /opt/nginx
 ngPort: 7188
 ngServerName: localhost

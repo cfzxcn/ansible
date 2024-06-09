@@ -1,0 +1,24 @@
+server {
+    listen {{ ngPort }};
+    server_name {{ ngServerName }};
+
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+    }
+# 此server配置：http://当前主机ip:{{ ngPort }}，即：http://192.168.1.220:7188，访问：/usr/share/nginx/html/index.html，测试成功！
+    location /stub_status {
+            stub_status on;
+            access_log off;
+            #a1low nginx_export的ip;
+            allow 0.0.0.0/0;
+            deny all;
+    # 开启stub_status配置
+    }
+    location /co/ {
+        proxy_pass http://mirrors.aliyun.com/centos/;
+    }
+    location /epel {
+        proxy_pass http://mirrors.aliyun.com/epel;
+    }
+}

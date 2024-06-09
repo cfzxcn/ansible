@@ -1,12 +1,13 @@
 server {
     listen {{ httpServerPort }};
     server_name {{ ngServerName }};
+
     location ~/group[0-9]/ {
 	ngx_fastdfs_module;
     }
-	error_page 500 502 503 504 /50x.html;
-	location = /50x.html {
+    location / {
 	root  {{ ngInstallDir }}/html;
+        index  index.html index.htm;
     }
 }
 

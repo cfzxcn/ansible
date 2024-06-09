@@ -1,6 +1,6 @@
-功能说明：
+# 功能说明：
 
-MySQL
+## MySQL
 1、二进制部署mysql5.7、8.0，并配置了mysql_secure_installation及远程访问，并可完美卸载
 2、bundle部署mysql5.7、8.0，并配置了mysql_secure_installation及远程访问，并可完美卸载
 3、yum成功部署mysql5.7、8.0.34，并配置了mysql_secure_installation及远程访问，并可卸载

@@ -13,7 +13,7 @@ ansible-playbook脚本，用来在linux服务器部署各种应用
 - Docker及Docker compose
 - harbor
 ## web服务器：
-- nginx的apt/yum安装、编译安装
+- [nginx](https://github.com/cfzxcn/ansible/wiki/%E5%88%A9%E7%94%A8ansible%E2%80%90playbook%E5%9C%A8linux%E6%9C%8D%E5%8A%A1%E5%99%A8%E4%B8%8A%E6%89%B9%E9%87%8F%E9%83%A8%E7%BD%B2Nginx%E6%95%99%E7%A8%8B)：支持apt/yum安装、编译安装
 - httpd
 - jdk和apache-tomcat
 - php
